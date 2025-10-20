@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="CineMatch_Backend/Presentation.csproj" />
+  <Project Path="Infrastructure/Infrastructure.csproj" />
+</Solution>
