@@ -1,12 +1,15 @@
 using Infrastructure.Data.Context;
 using Infrastructure.Data.Entities;
 using Infrastructure.Services;
+using Infrastructure.External; 
+using Infrastructure.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.Extensions.Options;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,6 +58,40 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             }
         };
     });
+// Why a *typed HttpClient* (IHttpClientFactory + ITmdbClient/TmdbClient)?
+// - Centralized config per external API: BaseAddress/Timeout/headers live in one place.
+// - Safe lifetime management: IHttpClientFactory avoids socket exhaustion & auto-refreshes DNS.
+// - Strong typing + DI: you inject ITmdbClient, not raw HttpClient; cleaner controllers & easy mocking in tests.
+// - Extensible: per-client policies (retry, circuit breaker) can be added later without touching call sites.
+// - Separation of concerns: TmdbClient owns HTTP details; the rest of the app just calls methods.
+
+
+// Bind the "TMDB" config section into TmdbOptions; DI exposes it as IOptions<TmdbOptions>.
+builder.Services.Configure<TmdbOptions>(builder.Configuration.GetSection("TMDB"));
+
+// Register a *typed* HttpClient for the TMDB client.
+// IHttpClientFactory will construct an HttpClient with these settings whenever ITmdbClient is requested.
+builder.Services.AddHttpClient<ITmdbClient, TmdbClient>((sp, client) =>
+{
+    // Pull strongly-typed options (merged from appsettings + user-secrets + env).
+    var opt = sp.GetRequiredService<IOptions<TmdbOptions>>().Value;
+
+    // Ensure trailing slash so the "/3/" segment remains when we append relative paths (no leading slash later).
+    var baseUrl = (opt.BaseUrl ?? "https://api.themoviedb.org/3").TrimEnd('/') + "/";
+    client.BaseAddress = new Uri(baseUrl);
+
+    // Sensible per-API timeout; faster failure beats hanging requests.
+    client.Timeout = TimeSpan.FromSeconds(8);
+
+    // Optional: if you switch to TMDB v4 bearer auth later.
+    // if (!string.IsNullOrWhiteSpace(opt.ReadAccessToken))
+    //     client.DefaultRequestHeaders.Authorization =
+    //         new AuthenticationHeaderValue("Bearer", opt.ReadAccessToken);
+});
+
+// Why: Adds a process-local cache you can use anywhere via DI.
+// Good for single-instance or dev. For multi-instance, later swap to Redis (IDistributedCache).
+builder.Services.AddMemoryCache();
 
 builder.Services.AddAuthorization();
 
