@@ -12,10 +12,9 @@ namespace Infrastructure.External
     {
         // Fetch a page of popular movies for MVP demos.
         // Good signal for "show 5 movies" without obscure titles.
-        Task<TmdbDiscoverResponse> DiscoverTopAsync(
-            int page,
-            string? language,
-            string? region,
-            CancellationToken ct);
+        Task<TmdbDiscoverResponse> DiscoverTopAsync(int page, string? language, string? region, CancellationToken ct);
+
+        // Official TMDB genre list (localized by language)
+        Task<TmdbGenreResponse> GetGenresAsync(string? language, CancellationToken ct);
     }
 }

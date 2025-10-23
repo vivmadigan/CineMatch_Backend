@@ -4,6 +4,7 @@ using Infrastructure.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace Presentation.Controllers
@@ -71,6 +72,47 @@ namespace Presentation.Controllers
         // Build full CDN URLs so the frontend doesn't need to know TMDB size rules.
         private static string? Img(string baseUrl, string? path, string size) =>
             string.IsNullOrEmpty(path) ? null : $"{baseUrl}{size}{path}";
+
+        /// <summary>
+        /// UI options: app-defined length buckets + TMDB genres (cached 24h per language).
+        /// </summary>
+        [HttpGet("options")]
+        public async Task<IActionResult> Options(
+            [FromServices] IMemoryCache cache,
+            CancellationToken ct,
+            [FromQuery] string? language = null)
+        {
+            // App-defined buckets (no DB needed for MVP)
+            var lengths = new List<LengthOptionDto>
+            {
+                new() { Key = "short",  Label = "Short (<100 min)", Min = null, Max = 99 },
+                new() { Key = "medium", Label = "Medium (100–140)", Min = 100,  Max = 140 },
+                new() { Key = "long",   Label = "Long (>140 min)",  Min = 141,  Max = null },
+            };
+
+            // Cache TMDB genres by language for 24h
+            var lang = string.IsNullOrWhiteSpace(language) ? _opt.DefaultLanguage : language!;
+            var cacheKey = $"tmdb_genres:{lang}";
+
+            var genres = await cache.GetOrCreateAsync(cacheKey, async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24);
+
+                var resp = await _tmdb.GetGenresAsync(lang, ct);
+
+                // If TMDB fails and returns 0, avoid poisoning the cache for a full day
+                if (resp.Genres.Count == 0)
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+
+                return resp.Genres
+                           .OrderBy(g => g.Name)
+                           .Select(g => new { id = g.Id, name = g.Name })
+                           .Cast<object>()
+                           .ToList();
+            });
+
+            return Ok(new MovieOptionsDto { Lengths = lengths, Genres = genres ?? [] });
+        }
     }
 
 }

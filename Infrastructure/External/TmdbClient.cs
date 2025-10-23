@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 // Purpose: Concrete TMDB client (typed HttpClient) used via ITmdbClient.
+// Why: Centralizes BaseAddress/Timeout/headers and keeps API keys on the server.
 //
 // Why 'sealed'?
 // - This class is not intended to be a base type; we mock ITmdbClient in tests.
@@ -107,6 +108,31 @@ namespace Infrastructure.External
 
             // If deserialization returned null for any reason, return an empty model.
             return data ?? new TmdbDiscoverResponse();
+        }
+
+        public async Task<TmdbGenreResponse> GetGenresAsync(string? language, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(_opt.ApiKey))
+                throw new InvalidOperationException("TMDB ApiKey is missing. Set TMDB:ApiKey in user-secrets.");
+
+            // No leading slash so BaseAddress (/3/) stays intact
+            var url = $"genre/movie/list?language={Uri.EscapeDataString(Lang(language))}&api_key={_opt.ApiKey}";
+
+            using var res = await _http.GetAsync(url, ct);
+            _logger.LogInformation("TMDB request: {Uri}", res.RequestMessage?.RequestUri);
+
+            if (!res.IsSuccessStatusCode)
+            {
+                var body = await res.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning("TMDB genres failed: {Status} {Body}", (int)res.StatusCode, body);
+                return new TmdbGenreResponse(); // safe empty
+            }
+
+            await using var stream = await res.Content.ReadAsStreamAsync(ct);
+            var data = await JsonSerializer.DeserializeAsync<TmdbGenreResponse>(
+                stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, ct);
+
+            return data ?? new TmdbGenreResponse();
         }
     }
 }
