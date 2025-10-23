@@ -95,9 +95,10 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddAuthorization();
 
-// Token service used by AuthController to mint JWTs
+// Dependency Injection
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IPreferenceService, PreferenceService>();
+builder.Services.AddScoped<IUserLikesService, UserLikesService>();
 
 builder.Services.AddControllers();
 
