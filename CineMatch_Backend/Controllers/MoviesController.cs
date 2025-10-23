@@ -1,11 +1,14 @@
 ﻿using Infrastructure.External;
+using Infrastructure.Likes;
 using Infrastructure.Models;
 using Infrastructure.Options;
+using Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace Presentation.Controllers
 {
@@ -32,10 +35,10 @@ namespace Presentation.Controllers
         [HttpGet("test")]
         [ProducesResponseType(typeof(IEnumerable<MovieSummaryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetFive(
-            CancellationToken ct,
             [FromQuery] int page = 1,
             [FromQuery] string? language = null,
-            [FromQuery] string? region = null)
+            [FromQuery] string? region = null,
+            CancellationToken ct = default)
         {
             // 1) Get one discover page from TMDB.
             var resp = await _tmdb.DiscoverTopAsync(page, language, region, ct);
@@ -77,20 +80,20 @@ namespace Presentation.Controllers
         /// UI options: app-defined length buckets + TMDB genres (cached 24h per language).
         /// </summary>
         [HttpGet("options")]
+        [ProducesResponseType(typeof(MovieOptionsDto), StatusCodes.Status200OK)]
         public async Task<IActionResult> Options(
             [FromServices] IMemoryCache cache,
-            CancellationToken ct,
-            [FromQuery] string? language = null)
+            [FromQuery] string? language = null,
+            CancellationToken ct = default)
         {
             // App-defined buckets (no DB needed for MVP)
             var lengths = new List<LengthOptionDto>
-            {
-                new() { Key = "short",  Label = "Short (<100 min)", Min = null, Max = 99 },
-                new() { Key = "medium", Label = "Medium (100–140)", Min = 100,  Max = 140 },
-                new() { Key = "long",   Label = "Long (>140 min)",  Min = 141,  Max = null },
-            };
+    {
+        new() { Key = "short",  Label = "Short (<100 min)",  Min = null, Max = 99 },
+        new() { Key = "medium", Label = "Medium (100–140)",  Min = 100,  Max = 140 },
+        new() { Key = "long",   Label = "Long (>140 min)",   Min = 141,  Max = null },
+    };
 
-            // Cache TMDB genres by language for 24h
             var lang = string.IsNullOrWhiteSpace(language) ? _opt.DefaultLanguage : language!;
             var cacheKey = $"tmdb_genres:{lang}";
 
@@ -99,19 +102,73 @@ namespace Presentation.Controllers
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24);
 
                 var resp = await _tmdb.GetGenresAsync(lang, ct);
-
-                // If TMDB fails and returns 0, avoid poisoning the cache for a full day
                 if (resp.Genres.Count == 0)
-                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1); // avoid caching empty for a day
 
+                // Strongly-typed so Swagger shows a real schema
                 return resp.Genres
                            .OrderBy(g => g.Name)
-                           .Select(g => new { id = g.Id, name = g.Name })
-                           .Cast<object>()
+                           .Select(g => new GenreOptionsDto { Id = g.Id, Name = g.Name })
                            .ToList();
             });
 
-            return Ok(new MovieOptionsDto { Lengths = lengths, Genres = genres ?? [] });
+            return Ok(new MovieOptionsDto { Lengths = lengths, Genres = genres ?? new List<GenreOptionsDto>() });
+        }
+        /// <summary>Return the current user's liked movies (most recent first).</summary>
+        [HttpGet("likes")]
+        [ProducesResponseType(typeof(IEnumerable<MovieLikeDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetLikes([FromServices] IUserLikesService likes, CancellationToken ct)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var rows = await likes.GetLikesAsync(userId, ct);
+
+            // Build full poster URL from stored PosterPath
+            string? FullPoster(string? path) =>
+                string.IsNullOrWhiteSpace(path) ? null : $"{_opt.ImageBase.TrimEnd('/')}/w342{path}";
+
+            var list = rows.Select(x => new MovieLikeDto
+            {
+                TmdbId = x.TmdbId,
+                Title = x.Title,
+                PosterUrl = FullPoster(x.PosterPath),
+                ReleaseYear = x.ReleaseYear,
+                LikedAt = x.CreatedAt
+            });
+
+            return Ok(list);
+        }
+
+        /// <summary>Like (or re-like) a movie; idempotent upsert. Provide an optional snapshot.</summary>
+        [HttpPost("{tmdbId:int}/like")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> Like(
+            int tmdbId,
+            [FromBody] LikeMovieRequestDto body,
+            [FromServices] IUserLikesService likes,
+            CancellationToken ct)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            await likes.UpsertLikeAsync(userId, tmdbId, body.Title, body.PosterPath, body.ReleaseYear, ct);
+            return NoContent();
+        }
+
+        /// <summary>Remove a like (idempotent).</summary>
+        [HttpDelete("{tmdbId:int}/like")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> Unlike(
+            int tmdbId,
+            [FromServices] IUserLikesService likes,
+            CancellationToken ct)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            await likes.RemoveLikeAsync(userId, tmdbId, ct);
+            return NoContent();
         }
     }
 

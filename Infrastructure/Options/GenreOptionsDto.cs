@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace Infrastructure.Options
 {
-    public sealed class MovieOptionsDto
+    public sealed class GenreOptionsDto
     {
-        public List<LengthOptionDto> Lengths { get; set; } = [];
-        public List<GenreOptionsDto> Genres { get; set; } = [];
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
     }
 }

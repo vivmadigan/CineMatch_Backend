@@ -18,6 +18,7 @@ namespace Infrastructure.Data.Context
         {
         }
         public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
+        public DbSet<UserMovieLike> UserMovieLikes => Set<UserMovieLike>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -48,6 +49,13 @@ namespace Infrastructure.Data.Context
                 .HasOne(p => p.User)
                 .WithOne()
                 .HasForeignKey<UserPreference>(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Be explicit about cascade delete for likes (if user is deleted, delete likes)
+            builder.Entity<UserMovieLike>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }
