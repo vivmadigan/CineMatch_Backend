@@ -14,6 +14,10 @@ namespace Infrastructure.External
         // Good signal for "show 5 movies" without obscure titles.
         Task<TmdbDiscoverResponse> DiscoverTopAsync(int page, string? language, string? region, CancellationToken ct);
 
+        // Discover movies filtered by genres and runtime.
+        // genreIds: comma-separated genre IDs (AND logic); runtimeMin/Max: inclusive bounds.
+        Task<TmdbDiscoverResponse> DiscoverAsync(IEnumerable<int> genreIds, int? runtimeMin, int? runtimeMax, int page, string? language, string? region, CancellationToken ct);
+
         // Official TMDB genre list (localized by language)
         Task<TmdbGenreResponse> GetGenresAsync(string? language, CancellationToken ct);
     }
