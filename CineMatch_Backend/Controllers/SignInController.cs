@@ -28,8 +28,13 @@ namespace Presentation.Controllers
                     var signInResult = await _signInManager.CheckPasswordSignInAsync(user, model.Password, lockoutOnFailure: false);
                     if (signInResult.Succeeded)
                     {
-                        var token = _tokenService.CreateToken(user);
-                        return Ok(new { token, userId = user.Id, email = user.Email, displayName = user.DisplayName });
+                        return Ok(new AuthResponseDto
+                        {
+                            Token = _tokenService.CreateToken(user),
+                            UserId = user.Id,
+                            Email = user.Email!,
+                            DisplayName = user.DisplayName!
+                        });
                     }
                 }
 

@@ -55,8 +55,13 @@ namespace Presentation.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unexpected error occurred during sign up.", details = ex.Message });
             }
 
-            return Ok(new { token = _tokenService.CreateToken(user) });
-
+            return Ok(new AuthResponseDto
+            {
+                Token = _tokenService.CreateToken(user),
+                UserId = user.Id,
+                Email = user.Email!,
+                DisplayName = user.DisplayName!
+            });
         }
     }
 }
