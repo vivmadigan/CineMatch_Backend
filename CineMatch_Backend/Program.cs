@@ -1,8 +1,11 @@
 using Infrastructure.Data.Context;
 using Infrastructure.Data.Entities;
 using Infrastructure.Services;
+using Infrastructure.Services.Matches;
+using Infrastructure.Services.Chat;
 using Infrastructure.External; 
 using Infrastructure.Options;
+using Presentation.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Rewrite;
@@ -27,7 +30,7 @@ builder.Services
   .AddEntityFrameworkStores<ApplicationDbContext>()
   .AddSignInManager();
 
-// JWT Bearer authentication
+// JWT Bearer authentication (supports both HTTP headers and WebSocket query string)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
@@ -45,7 +48,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromMinutes(2) // optional
         };
 
-        // If you later add SignalR: allow token via query (?access_token=...) on /chathub
+        // Allow JWT from query string for SignalR WebSocket connections
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -95,10 +98,30 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddAuthorization();
 
+// CORS policies
+builder.Services.AddCors(options =>
+{
+    // Development policy for frontend at localhost:5173 (Vite default)
+    // Supports both regular HTTP requests and SignalR WebSocket connections
+    options.AddPolicy("DevClient", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
+          .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+          .WithHeaders("Authorization", "Content-Type")
+           .WithExposedHeaders("*");
+        // Note: No AllowCredentials() - we use bearer tokens in Authorization header or query string
+    });
+});
+
 // Dependency Injection
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IPreferenceService, PreferenceService>();
 builder.Services.AddScoped<IUserLikesService, UserLikesService>();
+builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+
+// SignalR for real-time chat
+builder.Services.AddSignalR();
 
 builder.Services.AddControllers();
 
@@ -106,6 +129,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "CineMatch", Version = "v1" });
+
+    // Include XML comments for parameter descriptions in Swagger UI
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+        c.IncludeXmlComments(xmlPath);
 
     var jwtScheme = new OpenApiSecurityScheme
     {
@@ -139,18 +168,23 @@ app.UseSwaggerUI(x => x.SwaggerEndpoint("/swagger/v1/swagger.json", "CineMatch v
 app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
 app.UseHttpsRedirection();
 
-// Enable CORS for all origins, methods, and headers
-// Can be customized as needed for security
-app.UseCors(policy =>
+// Apply CORS policies (before authentication/authorization)
+if (app.Environment.IsDevelopment())
 {
-    policy.AllowAnyOrigin()
-          .AllowAnyMethod()
-          .AllowAnyHeader();
-});
+    // Named policy for frontend at localhost:5173 (includes SignalR support)
+    app.UseCors("DevClient");
+}
+else
+{
+  // Production: allow any origin (can be restricted later)
+    app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+}
+
 // Authentication BEFORE Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/chathub");
 
 app.Run();
