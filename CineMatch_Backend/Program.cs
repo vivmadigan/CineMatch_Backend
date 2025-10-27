@@ -17,8 +17,12 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Register DbContext with SQL Server (but allow tests to override)
+if (builder.Environment.EnvironmentName != "Test")
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+}
 
 builder.Services
   .AddIdentityCore<UserEntity>(o =>
@@ -188,3 +192,6 @@ app.MapControllers();
 app.MapHub<ChatHub>("/chathub");
 
 app.Run();
+
+// Make Program class accessible to WebApplicationFactory for integration tests
+public partial class Program { }

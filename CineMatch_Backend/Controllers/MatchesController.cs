@@ -3,6 +3,7 @@ using Infrastructure.Services.Matches;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace Presentation.Controllers
@@ -89,8 +90,33 @@ namespace Presentation.Controllers
             if (userId == request.TargetUserId)
                 return BadRequest(new { error = "Cannot match with yourself" });
 
-            var result = await matches.RequestAsync(userId, request.TargetUserId, request.TmdbId, ct);
-            return Ok(result);
+            // ? Validate TargetUserId is not empty
+            if (string.IsNullOrWhiteSpace(request.TargetUserId))
+                return BadRequest(new { error = "TargetUserId is required" });
+
+            // ? Validate TargetUserId is a valid GUID
+            if (!Guid.TryParse(request.TargetUserId, out var targetGuid) || targetGuid == Guid.Empty)
+                return BadRequest(new { error = "TargetUserId must be a valid non-empty GUID" });
+
+            // ? Validate TmdbId is positive
+            if (request.TmdbId <= 0)
+                return BadRequest(new { error = "TmdbId must be a positive integer" });
+
+            try
+            {
+                var result = await matches.RequestAsync(userId, request.TargetUserId, request.TmdbId, ct);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("User not found"))
+            {
+                // ? Handle non-existent target user gracefully
+                return NotFound(new { error = ex.Message });
+            }
+            catch (DbUpdateException)
+            {
+                // ? Handle foreign key constraint violations
+                return BadRequest(new { error = "Target user does not exist" });
+            }
         }
     }
 }

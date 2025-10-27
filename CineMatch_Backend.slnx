@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="CineMatch_Backend/Presentation.csproj" />
+  <Project Path="Infrastructure.Tests/Infrastructure.Tests.csproj" Id="30603f29-9d33-483e-be02-fda4bc71aadc" />
   <Project Path="Infrastructure/Infrastructure.csproj" />
+  <Project Path="Presentation.Tests/Presentation.Tests.csproj" />
 </Solution>
