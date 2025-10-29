@@ -72,87 +72,131 @@ namespace Infrastructure.Services.Matches
 
         public async Task<MatchResultDto> RequestAsync(string requestorId, string targetUserId, int tmdbId, CancellationToken ct)
         {
-            // 1) Check if reciprocal request exists (target?requestor, same tmdbId)
-            var reciprocalRequest = await _db.MatchRequests
-                .FirstOrDefaultAsync(x =>
-                x.RequestorId == targetUserId &&
-                x.TargetUserId == requestorId &&
-                x.TmdbId == tmdbId, ct);
+            Console.WriteLine($"[MatchService] ?????????????????????????????????????????");
+            Console.WriteLine($"[MatchService] ?? Processing match request (MANUAL)");
+            Console.WriteLine($"[MatchService]    Clicker (requestor): {requestorId}");
+            Console.WriteLine($"[MatchService]    Target (who they want to match): {targetUserId}");
+            Console.WriteLine($"[MatchService]  Movie: {tmdbId}");
 
-            if (reciprocalRequest != null)
-            {
-                // 2) Mutual match! Create chat room and memberships
-                var room = new ChatRoom
-                {
-                    Id = Guid.NewGuid(),
-                    CreatedAt = DateTime.UtcNow
+            // Check if there's an existing INCOMING request (target ? requestor)
+            // This means the target user already liked this movie and created a request TO us
+            Console.WriteLine($"[MatchService]    Checking for incoming request: {targetUserId} ? {requestorId}");
+            
+            var incomingRequest = await _db.MatchRequests
+           .FirstOrDefaultAsync(x =>
+          x.RequestorId == targetUserId &&
+            x.TargetUserId == requestorId &&
+         x.TmdbId == tmdbId, ct);
+
+         if (incomingRequest != null)
+                  {
+             // MUTUAL MATCH! The target user already sent us a request
+               Console.WriteLine($"[MatchService] ?? MUTUAL MATCH DETECTED!");
+             Console.WriteLine($"[MatchService]    Incoming request found: {targetUserId} ? {requestorId}");
+         Console.WriteLine($"[MatchService]    Creating chat room...");
+
+               var room = new ChatRoom
+    {
+        Id = Guid.NewGuid(),
+           CreatedAt = DateTime.UtcNow
                 };
+         _db.ChatRooms.Add(room);
 
-                _db.ChatRooms.Add(room);
-
-                var membership1 = new ChatMembership
-                {
-                    RoomId = room.Id,
-                    UserId = requestorId,
-                    IsActive = true,
-                    JoinedAt = DateTime.UtcNow
-                };
-
-                var membership2 = new ChatMembership
-                {
-                    RoomId = room.Id,
-                    UserId = targetUserId,
-                    IsActive = true,
-                    JoinedAt = DateTime.UtcNow
-                };
-
-                _db.ChatMemberships.Add(membership1);
-                _db.ChatMemberships.Add(membership2);
-
-                // Remove the reciprocal request (it's been fulfilled)
-                _db.MatchRequests.Remove(reciprocalRequest);
-
-                await _db.SaveChangesAsync(ct);
-
-                return new MatchResultDto
-                {
-                    Matched = true,
-                    RoomId = room.Id
-                };
-            }
-
-            // 3) No reciprocal match yet. Check if we already sent this request (idempotency)
-            var existingRequest = await _db.MatchRequests
-                .FirstOrDefaultAsync(x =>
-                 x.RequestorId == requestorId &&
-                x.TargetUserId == targetUserId &&
-                 x.TmdbId == tmdbId, ct);
-
-            if (existingRequest == null)
-            {
-                // 4) Save new request
-                var newRequest = new MatchRequest
-                {
-                    Id = Guid.NewGuid(),
-                    RequestorId = requestorId,
-                    TargetUserId = targetUserId,
-                    TmdbId = tmdbId,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _db.MatchRequests.Add(newRequest);
-                await _db.SaveChangesAsync(ct);
-
-                // ? NEW: Send real-time notification to target user
-                await SendMatchNotificationAsync(requestorId, targetUserId, tmdbId);
-            }
-
-            // Return no match (request saved or already existed)
-            return new MatchResultDto
-            {
-                Matched = false,
-                RoomId = null
+               var membership1 = new ChatMembership
+      {
+               RoomId = room.Id,
+             UserId = requestorId,
+           IsActive = true,
+     JoinedAt = DateTime.UtcNow
             };
+
+     var membership2 = new ChatMembership
+       {
+     RoomId = room.Id,
+     UserId = targetUserId,
+              IsActive = true,
+          JoinedAt = DateTime.UtcNow
+      };
+
+        _db.ChatMemberships.Add(membership1);
+       _db.ChatMemberships.Add(membership2);
+
+     // Remove both match requests (fulfilled)
+      Console.WriteLine($"[MatchService]    Removing fulfilled match requests...");
+    _db.MatchRequests.Remove(incomingRequest);
+
+                // Also remove our outgoing request if it exists
+     var outgoingRequest = await _db.MatchRequests
+               .FirstOrDefaultAsync(x =>
+      x.RequestorId == requestorId &&
+  x.TargetUserId == targetUserId &&
+   x.TmdbId == tmdbId, ct);
+
+     if (outgoingRequest != null)
+      {
+        _db.MatchRequests.Remove(outgoingRequest);
+     Console.WriteLine($"[MatchService]    Removed 2 match requests (bidirectional)");
+  }
+      else
+       {
+           Console.WriteLine($"[MatchService]    Removed 1 match request (incoming only)");
+      }
+
+       await _db.SaveChangesAsync(ct);
+
+          Console.WriteLine($"[MatchService] ? Chat room created: {room.Id}");
+        Console.WriteLine($"[MatchService]    Members: {requestorId}, {targetUserId}");
+
+     // Send "It's a match!" notification to BOTH users
+      Console.WriteLine($"[MatchService]    Sending mutual match notifications...");
+       await SendMutualMatchNotificationAsync(requestorId, targetUserId, tmdbId, room.Id);
+
+    Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
+
+       return new MatchResultDto
+     {
+     Matched = true,
+    RoomId = room.Id
+            };
+     }
+
+    // No incoming request exists - create our outgoing request
+     Console.WriteLine($"[MatchService]    No incoming request found, creating outgoing request...");
+    
+            var existingOutgoing = await _db.MatchRequests
+      .FirstOrDefaultAsync(x =>
+   x.RequestorId == requestorId &&
+          x.TargetUserId == targetUserId &&
+      x.TmdbId == tmdbId, ct);
+
+          if (existingOutgoing == null)
+      {
+           var newRequest = new MatchRequest
+       {
+      Id = Guid.NewGuid(),
+      RequestorId = requestorId,
+     TargetUserId = targetUserId,
+   TmdbId = tmdbId,
+      CreatedAt = DateTime.UtcNow
+     };
+
+  _db.MatchRequests.Add(newRequest);
+         await _db.SaveChangesAsync(ct);
+
+       Console.WriteLine($"[MatchService] ? Match request created: {requestorId} ? {targetUserId} (pending acceptance)");
+           Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
+      }
+  else
+ {
+   Console.WriteLine($"[MatchService] ??  Match request already exists (idempotent)");
+          Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
+    }
+
+  return new MatchResultDto
+            {
+     Matched = false,
+         RoomId = null
+         };
         }
 
         /// <summary>
@@ -207,257 +251,153 @@ namespace Infrastructure.Services.Matches
         }
 
         /// <summary>
-        /// Automatically create match requests when a user likes a movie.
-        /// Creates bidirectional match requests and detects mutual matches.
-        /// If mutual match is detected, automatically creates a chat room.
-        /// Sends real-time notifications to all matched users.
+        /// Automatically create ONE-WAY match requests when a user likes a movie.
+        /// Finds all other users who liked the same movie and creates requests FROM current user TO them.
+        /// Other users will see these requests and can manually accept/decline.
         /// </summary>
         public async Task CreateAutoMatchRequestsAsync(string userId, int tmdbId, CancellationToken ct)
         {
             Console.WriteLine($"[MatchService] ?????????????????????????????????????????");
-            Console.WriteLine($"[MatchService] ?? Starting auto-match process");
-            Console.WriteLine($"[MatchService]    User: {userId}");
-            Console.WriteLine($"[MatchService]    Movie: {tmdbId}");
+            Console.WriteLine($"[MatchService] ?? Creating ONE-WAY match requests");
+        Console.WriteLine($"[MatchService]    User: {userId}");
+   Console.WriteLine($"[MatchService]    Movie: {tmdbId}");
 
-            try
+        try
             {
-                // Find all users who already liked this movie (excluding current user)
-                var usersWhoLiked = await _db.UserMovieLikes
-                    .AsNoTracking()
-                    .Where(x => x.TmdbId == tmdbId && x.UserId != userId)
-                    .Select(x => x.UserId)
-                    .Distinct()
-                    .ToListAsync(ct);
+    // Find all users who already liked this movie (excluding current user)
+    var usersWhoLiked = await _db.UserMovieLikes
+  .AsNoTracking()
+   .Where(x => x.TmdbId == tmdbId && x.UserId != userId)
+    .Select(x => x.UserId)
+    .Distinct()
+ .ToListAsync(ct);
 
-                if (usersWhoLiked.Count == 0)
-                {
-                    Console.WriteLine($"[MatchService] ??  No other users have liked movie {tmdbId} yet");
-                    Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
-                    return;
-                }
-
-                Console.WriteLine($"[MatchService] ? Found {usersWhoLiked.Count} user(s) who liked movie {tmdbId}:");
-                foreach (var uid in usersWhoLiked)
-                {
-                    Console.WriteLine($"[MatchService]    • {uid}");
-                }
-
-                // Create match requests for each user
-                int matchCount = 0;
-                int mutualMatchCount = 0;
-
-                foreach (var otherUserId in usersWhoLiked)
-                {
-                    try
-                    {
-                        Console.WriteLine($"[MatchService] ?? Processing match with user {otherUserId}...");
-
-                        var (mutualMatch, roomId) = await CreateBidirectionalMatchRequestsAsync(userId, otherUserId, tmdbId, ct);
-
-                        if (mutualMatch)
-                        {
-                            mutualMatchCount++;
-                            Console.WriteLine($"[MatchService] ?? MUTUAL MATCH DETECTED!");
-                            Console.WriteLine($"[MatchService]  Chat Room: {roomId}");
-                            Console.WriteLine($"[MatchService]    Users: {userId} ? {otherUserId}");
-
-                            await SendMutualMatchNotificationAsync(userId, otherUserId, tmdbId, roomId);
-                        }
-                        else
-                        {
-                            matchCount++;
-                            Console.WriteLine($"[MatchService] ? Match request created: {userId} ? {otherUserId}");
-                            await SendMatchNotificationAsync(userId, otherUserId, tmdbId);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[MatchService] ? Failed to create match with user {otherUserId}:");
-                        Console.WriteLine($"[MatchService]    {ex.Message}");
-                    }
-                }
-
-                Console.WriteLine($"[MatchService] ?? Summary:");
-                Console.WriteLine($"[MatchService]    Regular matches: {matchCount}");
-                Console.WriteLine($"[MatchService]    Mutual matches: {mutualMatchCount}");
-                Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MatchService] ? CRITICAL ERROR in CreateAutoMatchRequestsAsync:");
-                Console.WriteLine($"[MatchService]    Message: {ex.Message}");
-                Console.WriteLine($"[MatchService]    Type: {ex.GetType().Name}");
-                Console.WriteLine($"[MatchService]    Stack Trace:\n{ex.StackTrace}");
-                Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Create bidirectional match requests and detect mutual matches.
-        /// Creates: userId to otherUserId AND otherUserId to userId
-        /// If both requests exist, creates a chat room automatically.
-        /// </summary>
-        /// <returns>Tuple: (isMutualMatch, chatRoomId)</returns>
-        private async Task<(bool isMutualMatch, Guid? roomId)> CreateBidirectionalMatchRequestsAsync(
-        string userId,
-            string otherUserId,
-            int tmdbId,
-         CancellationToken ct)
-        {
-  Console.WriteLine($"[MatchService]    ?? Checking existing match requests...");
-
-      // Check if requests already exist
-        var existingRequest1 = await _db.MatchRequests
-            .FirstOrDefaultAsync(x =>
-  x.RequestorId == userId &&
-      x.TargetUserId == otherUserId &&
-            x.TmdbId == tmdbId, ct);
-
-            var existingRequest2 = await _db.MatchRequests
-                .FirstOrDefaultAsync(x =>
-      x.RequestorId == otherUserId &&
-            x.TargetUserId == userId &&
-   x.TmdbId == tmdbId, ct);
-
-            Console.WriteLine($"[MatchService]       Request {userId} to {otherUserId}: {(existingRequest1 != null ? "EXISTS" : "NONE")}");
-            Console.WriteLine($"[MatchService]       Request {otherUserId} to {userId}: {(existingRequest2 != null ? "EXISTS" : "NONE")}");
-
-       // Track if mutual match already existed BEFORE we create any new requests
-            bool wasMutualMatchBefore = existingRequest1 != null && existingRequest2 != null;
-
-            // Create first request (userId to otherUserId) if doesn't exist
-   bool createdRequest1 = false;
-      if (existingRequest1 == null)
-  {
-                var newRequest1 = new MatchRequest
-                {
-Id = Guid.NewGuid(),
-           RequestorId = userId,
-     TargetUserId = otherUserId,
-  TmdbId = tmdbId,
- CreatedAt = DateTime.UtcNow
-  };
-    _db.MatchRequests.Add(newRequest1);
-await _db.SaveChangesAsync(ct);
-  createdRequest1 = true;
-      Console.WriteLine($"[MatchService]       ? Created: {userId} to {otherUserId}");
-            }
-
-       // Create second request (otherUserId to userId) if doesn't exist
-        bool createdRequest2 = false;
-  if (existingRequest2 == null)
-            {
-        var newRequest2 = new MatchRequest
-                {
-          Id = Guid.NewGuid(),
-      RequestorId = otherUserId,
-          TargetUserId = userId,
- TmdbId = tmdbId,
-           CreatedAt = DateTime.UtcNow
-     };
-           _db.MatchRequests.Add(newRequest2);
-      await _db.SaveChangesAsync(ct);
-      createdRequest2 = true;
-            Console.WriteLine($"[MatchService]       ? Created: {otherUserId} to {userId}");
-    }
-
-         // Now check if BOTH requests exist (after potential creation)
-         bool hasBothRequestsNow = (existingRequest1 != null || createdRequest1) &&
-      (existingRequest2 != null || createdRequest2);
-
-  // Only create chat room if this is a NEW mutual match
-      if (hasBothRequestsNow && !wasMutualMatchBefore)
-{
-      Console.WriteLine($"[MatchService]       ?? Both requests now exist = NEW MUTUAL MATCH!");
-
-    // Double-check if chat room already exists for these users
-    var existingRoom = await _db.ChatMemberships
-          .Where(m => m.UserId == userId || m.UserId == otherUserId)
-   .GroupBy(m => m.RoomId)
- .Where(g => g.Count() == 2 && g.Select(m => m.UserId).Distinct().Count() == 2)
-        .Select(g => g.Key)
-        .FirstOrDefaultAsync(ct);
-
-  if (existingRoom != Guid.Empty)
-           {
-          Console.WriteLine($"[MatchService]       ??  Chat room already exists: {existingRoom}");
-      return (true, existingRoom);
-            }
-
-          // Create new chat room
-       var roomId = await CreateMutualMatchAsync(userId, otherUserId, tmdbId, ct);
-    return (true, roomId);
+        if (usersWhoLiked.Count == 0)
+       {
+           Console.WriteLine($"[MatchService] ??  No other users have liked movie {tmdbId} yet");
+    Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
+    return;
      }
-            else if (wasMutualMatchBefore)
+
+      Console.WriteLine($"[MatchService] ? Found {usersWhoLiked.Count} user(s) who liked movie {tmdbId}:");
+           foreach (var uid in usersWhoLiked)
+        {
+  Console.WriteLine($"[MatchService]    • {uid}");
+           }
+
+       // Create ONE-WAY match requests (userId ? otherUserId)
+         // Other users will see these requests and can accept/decline manually
+       int requestsCreated = 0;
+      int requestsSkipped = 0;
+
+   foreach (var otherUserId in usersWhoLiked)
+                {
+          try
+        {
+   // Check if they already have a chat room together (already matched)
+  var existingRoom = await _db.ChatMemberships
+          .Where(m => m.UserId == userId || m.UserId == otherUserId)
+    .GroupBy(m => m.RoomId)
+          .Where(g => g.Count() == 2 && g.Select(m => m.UserId).Distinct().Count() == 2)
+         .AnyAsync(ct);
+
+ if (existingRoom)
+          {
+       Console.WriteLine($"[MatchService]    ??  Chat room already exists with {otherUserId}, skipping");
+                 requestsSkipped++;
+     continue;
+     }
+
+          // Check if request already exists
+         var existingRequest = await _db.MatchRequests
+         .FirstOrDefaultAsync(x =>
+   x.RequestorId == userId &&
+               x.TargetUserId == otherUserId &&
+             x.TmdbId == tmdbId, ct);
+
+       if (existingRequest == null)
+    {
+        var newRequest = new MatchRequest
+                   {
+   Id = Guid.NewGuid(),
+        RequestorId = userId,
+               TargetUserId = otherUserId,
+  TmdbId = tmdbId,
+          CreatedAt = DateTime.UtcNow
+        };
+
+   _db.MatchRequests.Add(newRequest);
+      await _db.SaveChangesAsync(ct);
+             requestsCreated++;
+
+      Console.WriteLine($"[MatchService]    ? Created request: {userId} ? {otherUserId}");
+   }
+     else
             {
-         Console.WriteLine($"[MatchService]       ??  Mutual match already existed before this call");
+           Console.WriteLine($"[MatchService]  ??  Request already exists: {userId} ? {otherUserId}");
+  requestsSkipped++;
+         }
+       }
+        catch (Exception ex)
+   {
+          Console.WriteLine($"[MatchService]    ? Failed to create request for {otherUserId}: {ex.Message}");
+   }
+         }
 
-            // Find the existing room for these users
-        var existingRoom = await _db.ChatMemberships
-.Where(m => m.UserId == userId || m.UserId == otherUserId)
- .GroupBy(m => m.RoomId)
-    .Where(g => g.Count() == 2 && g.Select(m => m.UserId).Distinct().Count() == 2)
-          .Select(g => g.Key)
-         .FirstOrDefaultAsync(ct);
-
-       return (true, existingRoom);
+         Console.WriteLine($"[MatchService] ?? Summary:");
+     Console.WriteLine($"[MatchService]    New requests created: {requestsCreated}");
+  Console.WriteLine($"[MatchService]    Skipped (existing/matched): {requestsSkipped}");
+        Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
+         }
+            catch (Exception ex)
+ {
+       Console.WriteLine($"[MatchService] ? CRITICAL ERROR in CreateAutoMatchRequestsAsync:");
+          Console.WriteLine($"[MatchService]    Message: {ex.Message}");
+  Console.WriteLine($"[MatchService]    Type: {ex.GetType().Name}");
+     Console.WriteLine($"[MatchService]    Stack Trace:\n{ex.StackTrace}");
+         Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
+         throw;
             }
-
- // Only one request exists - not a mutual match yet
-  Console.WriteLine($"[MatchService]       ? Waiting for other user to like this movie");
-   return (false, null);
         }
 
         /// <summary>
-        /// Create a chat room for a mutual match.
-        /// Called when both users have liked the same movie.
+        /// Decline a match request from another user.
+        /// Removes the incoming match request and optionally notifies the original requestor.
         /// </summary>
-        private async Task<Guid> CreateMutualMatchAsync(string userId1, string userId2, int tmdbId, CancellationToken ct)
+        public async Task DeclineMatchAsync(string declinerUserId, string requestorUserId, int tmdbId, CancellationToken ct)
         {
-            // Create chat room
-            var room = new ChatRoom
+   Console.WriteLine($"[MatchService] ?????????????????????????????????????????");
+        Console.WriteLine($"[MatchService] ? Declining match request");
+            Console.WriteLine($"[MatchService]    Original requestor: {requestorUserId}");
+            Console.WriteLine($"[MatchService]    Declining user: {declinerUserId}");
+         Console.WriteLine($"[MatchService]  Movie: {tmdbId}");
+
+            // Find and remove the incoming match request (requestor ? decliner)
+        var incomingRequest = await _db.MatchRequests
+  .FirstOrDefaultAsync(x =>
+   x.RequestorId == requestorUserId &&
+     x.TargetUserId == declinerUserId &&
+        x.TmdbId == tmdbId, ct);
+
+            if (incomingRequest != null)
+         {
+          _db.MatchRequests.Remove(incomingRequest);
+  await _db.SaveChangesAsync(ct);
+
+     Console.WriteLine($"[MatchService] ? Match request declined and removed");
+          Console.WriteLine($"[MatchService]    Request {requestorUserId} ? {declinerUserId} deleted");
+
+        // TODO: Optional - Send notification to requestor that match was declined
+  // await SendMatchDeclinedNotificationAsync(requestorUserId, declinerUserId, tmdbId);
+    }
+    else
             {
-                Id = Guid.NewGuid(),
-                CreatedAt = DateTime.UtcNow
-            };
-            _db.ChatRooms.Add(room);
+ Console.WriteLine($"[MatchService] ??  No match request found to decline");
+             Console.WriteLine($"[MatchService]    Checked for: {requestorUserId} ? {declinerUserId}");
+            }
 
-            // Create memberships for both users
-            var membership1 = new ChatMembership
-            {
-                RoomId = room.Id,
-                UserId = userId1,
-                IsActive = true,
-                JoinedAt = DateTime.UtcNow
-            };
-
-            var membership2 = new ChatMembership
-            {
-                RoomId = room.Id,
-                UserId = userId2,
-                IsActive = true,
-                JoinedAt = DateTime.UtcNow
-            };
-
-            _db.ChatMemberships.Add(membership1);
-            _db.ChatMemberships.Add(membership2);
-
-            // Remove the match requests (they've been fulfilled)
-            var requestsToRemove = await _db.MatchRequests
-           .Where(x =>
-            (x.RequestorId == userId1 && x.TargetUserId == userId2 && x.TmdbId == tmdbId) ||
-         (x.RequestorId == userId2 && x.TargetUserId == userId1 && x.TmdbId == tmdbId))
-                     .ToListAsync(ct);
-
-            _db.MatchRequests.RemoveRange(requestsToRemove);
-
-            await _db.SaveChangesAsync(ct);
-
-            Console.WriteLine($"[MatchService] ?? Created chat room {room.Id} for mutual match: {userId1} ? {userId2}");
-
-            return room.Id;
-        }
+            Console.WriteLine($"[MatchService] ?????????????????????????????????????????\n");
+  }
 
         /// <summary>
         /// Send "It's a match!" notification to BOTH users when mutual match is detected.
@@ -465,62 +405,62 @@ await _db.SaveChangesAsync(ct);
         /// </summary>
         private async Task SendMutualMatchNotificationAsync(string userId1, string userId2, int tmdbId, Guid? roomId)
         {
-            try
+    try
             {
-                // Get both users' display names
-                var users = await _db.Users
-        .AsNoTracking()
+            // Get both users' display names
+      var users = await _db.Users
+         .AsNoTracking()
         .Where(u => u.Id == userId1 || u.Id == userId2)
-          .Select(u => new { u.Id, u.DisplayName })
+        .Select(u => new { u.Id, u.DisplayName })
         .ToDictionaryAsync(u => u.Id, u => u.DisplayName);
 
-                // Get movie title
-                var movieTitle = await _db.UserMovieLikes
-          .AsNoTracking()
-           .Where(l => l.TmdbId == tmdbId && (l.UserId == userId1 || l.UserId == userId2))
-           .Select(l => l.Title)
-         .FirstOrDefaultAsync() ?? "a movie you liked";
+     // Get movie title
+          var movieTitle = await _db.UserMovieLikes
+  .AsNoTracking()
+          .Where(l => l.TmdbId == tmdbId && (l.UserId == userId1 || l.UserId == userId2))
+        .Select(l => l.Title)
+        .FirstOrDefaultAsync() ?? "a movie you liked";
 
-                // Send notification to user1
-                var matchData1 = new
-                {
-                    type = "mutualMatch",
-                    matchId = $"mutual-{userId1}-{userId2}",
-                    roomId = roomId?.ToString(),
-                    user = new
-                    {
-                        id = userId2,
-                        displayName = users.TryGetValue(userId2, out var name2) ? name2 : "Someone"
-                    },
-                    sharedMovieTitle = movieTitle,
-                    timestamp = DateTime.UtcNow
-                };
+    // Send notification to user1
+     var matchData1 = new
+     {
+         type = "mutualMatch",
+           matchId = $"mutual-{userId1}-{userId2}",
+      roomId = roomId?.ToString(),
+            user = new
+       {
+         id = userId2,
+            displayName = users.TryGetValue(userId2, out var name2) ? name2 : "Someone"
+      },
+         sharedMovieTitle = movieTitle,
+         timestamp = DateTime.UtcNow
+};
 
-                await _notificationService.SendMatchNotificationAsync(userId1, matchData1);
-                Console.WriteLine($"[MatchService] ?? Sent mutual match notification to {userId1}");
+   await _notificationService.SendMatchNotificationAsync(userId1, matchData1);
+             Console.WriteLine($"[MatchService] ?? Sent mutual match notification to {userId1}");
 
-                // Send notification to user2
-                var matchData2 = new
-                {
-                    type = "mutualMatch",
-                    matchId = $"mutual-{userId2}-{userId1}",
-                    roomId = roomId?.ToString(),
-                    user = new
-                    {
-                        id = userId1,
-                        displayName = users.TryGetValue(userId1, out var name1) ? name1 : "Someone"
-                    },
-                    sharedMovieTitle = movieTitle,
-                    timestamp = DateTime.UtcNow
-                };
+     // Send notification to user2
+var matchData2 = new
+         {
+     type = "mutualMatch",
+   matchId = $"mutual-{userId2}-{userId1}",
+             roomId = roomId?.ToString(),
+      user = new
+             {
+            id = userId1,
+       displayName = users.TryGetValue(userId1, out var name1) ? name1 : "Someone"
+          },
+            sharedMovieTitle = movieTitle,
+          timestamp = DateTime.UtcNow
+     };
 
-                await _notificationService.SendMatchNotificationAsync(userId2, matchData2);
-                Console.WriteLine($"[MatchService] ?? Sent mutual match notification to {userId2}");
+      await _notificationService.SendMatchNotificationAsync(userId2, matchData2);
+        Console.WriteLine($"[MatchService] ?? Sent mutual match notification to {userId2}");
             }
-            catch (Exception ex)
+  catch (Exception ex)
             {
-                Console.WriteLine($"[MatchService] ? Failed to send mutual match notifications: {ex.Message}");
+         Console.WriteLine($"[MatchService] ? Failed to send mutual match notifications: {ex.Message}");
             }
-        }
+    }
     }
 }

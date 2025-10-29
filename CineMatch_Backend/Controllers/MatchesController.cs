@@ -118,5 +118,59 @@ namespace Presentation.Controllers
                 return BadRequest(new { error = "Target user does not exist" });
             }
         }
+
+        /// <summary>
+        /// Decline a match request from another user.
+        /// Removes the incoming match request and returns 204 No Content.
+        /// </summary>
+        /// <param name="matches">Match service (injected)</param>
+        /// <param name="request">Match decline details (targetUserId is the person who sent the request, tmdbId is the movie)</param>
+        /// <param name="ct">Cancellation token</param>
+        /// <remarks>
+        /// Example request:
+        /// 
+        ///     POST /api/matches/decline
+        ///     {
+        ///       "targetUserId": "8bd1e3b8-8f30-4a9f-9b0e-8a8c6e2c0d71",
+        ///       "tmdbId": 27205
+        ///  }
+        ///     
+        /// This will decline the match request from the user with ID "8bd1e3b8..." for movie 27205.
+        /// </remarks>
+        /// <response code="204">Match request declined successfully</response>
+        /// <response code="400">Invalid request (missing targetUserId or tmdbId)</response>
+        /// <response code="401">User not authenticated</response>
+        [HttpPost("decline")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> DeclineMatch(
+            [FromServices] IMatchService matches,
+            [FromBody] RequestMatchDto request,
+            CancellationToken ct = default)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            // Validate TargetUserId is not empty
+            if (string.IsNullOrWhiteSpace(request.TargetUserId))
+                return BadRequest(new { error = "TargetUserId is required" });
+
+            // Validate TargetUserId is a valid GUID
+            if (!Guid.TryParse(request.TargetUserId, out var targetGuid) || targetGuid == Guid.Empty)
+                return BadRequest(new { error = "TargetUserId must be a valid non-empty GUID" });
+
+            // Validate TmdbId is positive
+            if (request.TmdbId <= 0)
+                return BadRequest(new { error = "TmdbId must be a positive integer" });
+
+            // Call DeclineMatchAsync: userId is the decliner, targetUserId is the original requestor
+            await matches.DeclineMatchAsync(userId, request.TargetUserId, request.TmdbId, ct);
+
+            return NoContent();
+        }
     }
 }
