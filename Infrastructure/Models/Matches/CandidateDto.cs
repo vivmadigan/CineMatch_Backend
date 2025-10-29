@@ -6,6 +6,6 @@ namespace Infrastructure.Models.Matches
         public string UserId { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public int OverlapCount { get; set; }
-      public List<int> SharedMovieIds { get; set; } = [];
+        public List<int> SharedMovieIds { get; set; } = [];
     }
 }

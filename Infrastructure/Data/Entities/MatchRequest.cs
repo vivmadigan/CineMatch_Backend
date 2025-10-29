@@ -15,29 +15,29 @@ namespace Infrastructure.Data.Entities
 
     [Index(nameof(TargetUserId), nameof(RequestorId), nameof(TmdbId))]
     [Index(nameof(RequestorId))]
- [Index(nameof(TargetUserId))]
+    [Index(nameof(TargetUserId))]
     public class MatchRequest
     {
         [Key]
         public Guid Id { get; set; } = Guid.NewGuid();
 
         [Required]
-   [MaxLength(450)]
+        [MaxLength(450)]
         public string RequestorId { get; set; } = "";
 
         [Required]
         [MaxLength(450)]
-      public string TargetUserId { get; set; } = "";
+        public string TargetUserId { get; set; } = "";
 
         public int TmdbId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
-  [ForeignKey(nameof(RequestorId))]
+        [ForeignKey(nameof(RequestorId))]
         public UserEntity? Requestor { get; set; }
 
-      [ForeignKey(nameof(TargetUserId))]
-      public UserEntity? Target { get; set; }
+        [ForeignKey(nameof(TargetUserId))]
+        public UserEntity? Target { get; set; }
     }
 }

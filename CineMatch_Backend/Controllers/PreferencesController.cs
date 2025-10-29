@@ -64,6 +64,25 @@ namespace Presentation.Controllers
         }
 
         /// <summary>
+        /// Delete the current authenticated user's preferences.
+        /// Idempotent - safe to call multiple times.
+        /// </summary>
+        /// <param name="ct">Cancellation token</param>
+        /// <response code="204">Preferences deleted successfully (or didn't exist)</response>
+        /// <response code="401">User not authenticated</response>
+        [HttpDelete]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Delete(CancellationToken ct)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            await _service.DeleteAsync(userId, ct);
+            return NoContent();
+        }
+
+        /// <summary>
         /// Validates that all provided genre IDs exist in TMDB.
         /// Uses cached genre list for performance (24-hour cache).
         /// </summary>

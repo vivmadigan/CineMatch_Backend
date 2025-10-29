@@ -29,60 +29,60 @@ public class SignUpControllerTests
     [Fact]
     public async Task SignUp_WithValidData_Returns200AndToken()
     {
-     // Arrange
-  var client = _fixture.CreateClient();
+        // Arrange
+        var client = _fixture.CreateClient();
         var uniqueId = Guid.NewGuid().ToString()[..8];
         var signupDto = new SignUpDto
         {
-          Email = $"newuser{uniqueId}@example.com",
-      Password = "ValidPass123!",
+            Email = $"newuser{uniqueId}@example.com",
+            Password = "ValidPass123!",
             DisplayName = $"NewUser{uniqueId}",
             FirstName = "Test",
-    LastName = "User"
-   };
+            LastName = "User"
+        };
 
-  // Act
-     var response = await client.PostAsJsonAsync("/api/signup", signupDto);
-      var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
+        // Act
+        var response = await client.PostAsJsonAsync("/api/signup", signupDto);
+        var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         result.Should().NotBeNull();
-  result!.Token.Should().NotBeNullOrEmpty();
+        result!.Token.Should().NotBeNullOrEmpty();
         result.UserId.Should().NotBeNullOrEmpty();
-  result.Email.Should().Be(signupDto.Email);
+        result.Email.Should().Be(signupDto.Email);
         result.DisplayName.Should().Be(signupDto.DisplayName);
     }
 
     [Fact]
     public async Task SignUp_CreatesUserInDatabase()
     {
-      // Arrange
+        // Arrange
         var client = _fixture.CreateClient();
         var uniqueId = Guid.NewGuid().ToString()[..8];
         var signupDto = new SignUpDto
         {
             Email = $"dbuser{uniqueId}@example.com",
-    Password = "ValidPass123!",
-    DisplayName = $"DBUser{uniqueId}",
+            Password = "ValidPass123!",
+            DisplayName = $"DBUser{uniqueId}",
             FirstName = "Database",
             LastName = "Test"
-   };
+        };
 
-    // Act
+        // Act
         var response = await client.PostAsJsonAsync("/api/signup", signupDto);
- var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
+        var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
 
         // Assert - Verify user exists in database
         using var scope = _fixture.Services.CreateScope();
-   var userManager = scope.ServiceProvider.GetRequiredService<UserManager<UserEntity>>();
-     var user = await userManager.FindByIdAsync(result!.UserId);
-        
-    user.Should().NotBeNull();
-   user!.Email.Should().Be(signupDto.Email);
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<UserEntity>>();
+        var user = await userManager.FindByIdAsync(result!.UserId);
+
+        user.Should().NotBeNull();
+        user!.Email.Should().Be(signupDto.Email);
         user.DisplayName.Should().Be(signupDto.DisplayName);
         user.FirstName.Should().Be(signupDto.FirstName);
-   user.LastName.Should().Be(signupDto.LastName);
+        user.LastName.Should().Be(signupDto.LastName);
     }
 
     [Fact]
@@ -93,17 +93,17 @@ public class SignUpControllerTests
         var uniqueId = Guid.NewGuid().ToString()[..8];
         var signupDto = new SignUpDto
         {
-   Email = $"min{uniqueId}@example.com",
-      Password = "Pass123!", // 8 chars + complexity requirements
-        DisplayName = $"Mi{uniqueId}",
+            Email = $"min{uniqueId}@example.com",
+            Password = "Pass123!", // 8 chars + complexity requirements
+            DisplayName = $"Mi{uniqueId}",
             FirstName = "Te",
-      LastName = "Us"
+            LastName = "Us"
         };
 
         // Act
         var response = await client.PostAsJsonAsync("/api/signup", signupDto);
 
-    // Assert
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -115,17 +115,17 @@ public class SignUpControllerTests
         var uniqueId = Guid.NewGuid().ToString()[..8];
         var signupDto = new SignUpDto
         {
-  Email = $"longpass{uniqueId}@example.com",
-      Password = "ThisIsAVeryLongPasswordThatShouldStillWork123!@#$%^&*()",
-         DisplayName = $"LongPass{uniqueId}",
+            Email = $"longpass{uniqueId}@example.com",
+            Password = "ThisIsAVeryLongPasswordThatShouldStillWork123!@#$%^&*()",
+            DisplayName = $"LongPass{uniqueId}",
             FirstName = "Long",
-LastName = "Password"
+            LastName = "Password"
         };
 
         // Act
         var response = await client.PostAsJsonAsync("/api/signup", signupDto);
 
-   // Assert
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -134,17 +134,17 @@ LastName = "Password"
     {
         // Arrange
         var client = _fixture.CreateClient();
-   var uniqueId = Guid.NewGuid().ToString()[..8];
+        var uniqueId = Guid.NewGuid().ToString()[..8];
         var signupDto = new SignUpDto
         {
-          Email = $"jwttest{uniqueId}@example.com",
+            Email = $"jwttest{uniqueId}@example.com",
             Password = "ValidPass123!",
-       DisplayName = $"JWTTest{uniqueId}",
+            DisplayName = $"JWTTest{uniqueId}",
             FirstName = "JWT",
-        LastName = "Test"
+            LastName = "Test"
         };
 
-      // Act
+        // Act
         var response = await client.PostAsJsonAsync("/api/signup", signupDto);
         var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
 
@@ -154,55 +154,55 @@ LastName = "Password"
         tokenParts.All(part => !string.IsNullOrEmpty(part)).Should().BeTrue();
     }
 
- [Fact]
+    [Fact]
     public async Task SignUp_UserCanImmediatelySignIn()
     {
-   // Arrange
+        // Arrange
         var client = _fixture.CreateClient();
         var uniqueId = Guid.NewGuid().ToString()[..8];
         var email = $"signin{uniqueId}@example.com";
         var password = "ValidPass123!";
-      
-   var signupDto = new SignUpDto
+
+        var signupDto = new SignUpDto
         {
-     Email = email,
- Password = password,
-     DisplayName = $"SignIn{uniqueId}",
-  FirstName = "Sign",
-    LastName = "In"
+            Email = email,
+            Password = password,
+            DisplayName = $"SignIn{uniqueId}",
+            FirstName = "Sign",
+            LastName = "In"
         };
 
         await client.PostAsJsonAsync("/api/signup", signupDto);
 
         // Act - Try to sign in immediately
-     var signInDto = new SignInDto
+        var signInDto = new SignInDto
         {
             Email = email,
-     Password = password
-     };
-  var signInResponse = await client.PostAsJsonAsync("/api/signin", signInDto);
+            Password = password
+        };
+        var signInResponse = await client.PostAsJsonAsync("/api/signin", signInDto);
 
-      // Assert
-    signInResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Assert
+        signInResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
- public async Task SignUp_WithUnicodeCharactersInName_Succeeds()
+    public async Task SignUp_WithUnicodeCharactersInName_Succeeds()
     {
         // Arrange
         var client = _fixture.CreateClient();
         var uniqueId = Guid.NewGuid().ToString()[..8];
- var signupDto = new SignUpDto
+        var signupDto = new SignUpDto
         {
-     Email = $"unicode{uniqueId}@example.com",
-    Password = "ValidPass123!",
-       DisplayName = $"José{uniqueId}",
-        FirstName = "Müller",
-         LastName = "François"
+            Email = $"unicode{uniqueId}@example.com",
+            Password = "ValidPass123!",
+            DisplayName = $"José{uniqueId}",
+            FirstName = "Müller",
+            LastName = "François"
         };
 
         // Act
-    var response = await client.PostAsJsonAsync("/api/signup", signupDto);
+        var response = await client.PostAsJsonAsync("/api/signup", signupDto);
         var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
 
         // Assert
@@ -210,12 +210,12 @@ LastName = "Password"
         result!.DisplayName.Should().Be(signupDto.DisplayName);
     }
 
-[Fact]
+    [Fact]
     public async Task SignUp_DisplayNameIsUnique()
     {
         // Arrange
         var uniqueId = Guid.NewGuid().ToString()[..8];
- var displayName = $"Unique{uniqueId}";
+        var displayName = $"Unique{uniqueId}";
 
         // Create first user
         var (_, _, _) = await _fixture.CreateAuthenticatedClientAsync(
@@ -224,19 +224,19 @@ LastName = "Password"
         );
 
         // Act - Try to create second user with same display name
-var client = _fixture.CreateClient();
+        var client = _fixture.CreateClient();
         var signupDto = new SignUpDto
         {
-         Email = $"second{uniqueId}@example.com",
-   Password = "ValidPass123!",
+            Email = $"second{uniqueId}@example.com",
+            Password = "ValidPass123!",
             DisplayName = displayName, // Same display name!
             FirstName = "Test",
-     LastName = "User"
+            LastName = "User"
         };
         var response = await client.PostAsJsonAsync("/api/signup", signupDto);
 
         // Assert
-      response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         var error = await response.Content.ReadAsStringAsync();
         error.Should().Contain("Display Name is already in use");
     }
@@ -246,7 +246,7 @@ var client = _fixture.CreateClient();
     #region Negative Scenarios
 
     [Fact]
- public async Task SignUp_WithDuplicateEmail_Returns409Conflict()
+    public async Task SignUp_WithDuplicateEmail_Returns409Conflict()
     {
         // Arrange
         var uniqueId = Guid.NewGuid().ToString()[..8];
@@ -255,20 +255,20 @@ var client = _fixture.CreateClient();
         // Create first user
         await _fixture.CreateAuthenticatedClientAsync(email: email);
 
- // Act - Try to create second user with same email
-      var client = _fixture.CreateClient();
+        // Act - Try to create second user with same email
+        var client = _fixture.CreateClient();
         var signupDto = new SignUpDto
         {
-       Email = email, // Same email!
+            Email = email, // Same email!
             Password = "ValidPass123!",
-   DisplayName = $"Different{uniqueId}",
+            DisplayName = $"Different{uniqueId}",
             FirstName = "Test",
-  LastName = "User"
+            LastName = "User"
         };
         var response = await client.PostAsJsonAsync("/api/signup", signupDto);
 
         // Assert
-  response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         var error = await response.Content.ReadAsStringAsync();
         error.Should().Contain("Email is already in use");
     }
@@ -279,19 +279,19 @@ var client = _fixture.CreateClient();
         // Arrange
         var client = _fixture.CreateClient();
         var uniqueId = Guid.NewGuid().ToString()[..8];
-   var signupDto = new SignUpDto
-    {
-    Email = "not-an-email", // Invalid format
-        Password = "ValidPass123!",
-     DisplayName = $"Invalid{uniqueId}",
+        var signupDto = new SignUpDto
+        {
+            Email = "not-an-email", // Invalid format
+            Password = "ValidPass123!",
+            DisplayName = $"Invalid{uniqueId}",
             FirstName = "Test",
-   LastName = "User"
+            LastName = "User"
         };
 
         // Act
         var response = await client.PostAsJsonAsync("/api/signup", signupDto);
 
-   // Assert
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
@@ -305,16 +305,16 @@ var client = _fixture.CreateClient();
         {
             Email = $"shortpw{uniqueId}@example.com",
             Password = "Short1!", // Only 7 chars (min is 8)
-       DisplayName = $"Short{uniqueId}",
-     FirstName = "Test",
-          LastName = "User"
+            DisplayName = $"Short{uniqueId}",
+            FirstName = "Test",
+            LastName = "User"
         };
 
         // Act
-    var response = await client.PostAsJsonAsync("/api/signup", signupDto);
+        var response = await client.PostAsJsonAsync("/api/signup", signupDto);
 
-   // Assert
-response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -324,34 +324,34 @@ response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var client = _fixture.CreateClient();
         var signupDto = new SignUpDto
         {
-    Email = "test@example.com",
-    Password = "ValidPass123!",
+            Email = "test@example.com",
+            Password = "ValidPass123!",
             DisplayName = "", // Missing required field
-          FirstName = "Test",
-   LastName = "User"
+            FirstName = "Test",
+            LastName = "User"
         };
 
         // Act
-    var response = await client.PostAsJsonAsync("/api/signup", signupDto);
+        var response = await client.PostAsJsonAsync("/api/signup", signupDto);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-  }
+    }
 
     [Fact]
     public async Task SignUp_WithEmptyPassword_Returns400BadRequest()
- {
+    {
         // Arrange
         var client = _fixture.CreateClient();
         var uniqueId = Guid.NewGuid().ToString()[..8];
         var signupDto = new SignUpDto
         {
-     Email = $"empty{uniqueId}@example.com",
-        Password = "", // Empty password
-       DisplayName = $"Empty{uniqueId}",
-      FirstName = "Test",
-      LastName = "User"
-   };
+            Email = $"empty{uniqueId}@example.com",
+            Password = "", // Empty password
+            DisplayName = $"Empty{uniqueId}",
+            FirstName = "Test",
+            LastName = "User"
+        };
 
         // Act
         var response = await client.PostAsJsonAsync("/api/signup", signupDto);
@@ -367,16 +367,16 @@ response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var client = _fixture.CreateClient();
         var uniqueId = Guid.NewGuid().ToString()[..8];
         var signupDto = new SignUpDto
-      {
-   Email = $"special{uniqueId}@example.com",
-   Password = "ValidPass123!",
-      DisplayName = $"User{uniqueId}_2024!",
-       FirstName = "Test",
-        LastName = "User"
+        {
+            Email = $"special{uniqueId}@example.com",
+            Password = "ValidPass123!",
+            DisplayName = $"User{uniqueId}_2024!",
+            FirstName = "Test",
+            LastName = "User"
         };
 
-   // Act
-      var response = await client.PostAsJsonAsync("/api/signup", signupDto);
+        // Act
+        var response = await client.PostAsJsonAsync("/api/signup", signupDto);
 
         // Assert - Should succeed (special chars allowed in display name)
         response.StatusCode.Should().Be(HttpStatusCode.OK);

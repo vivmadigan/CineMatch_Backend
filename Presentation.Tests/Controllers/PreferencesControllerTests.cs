@@ -27,20 +27,20 @@ public class PreferencesControllerTests
         // Arrange
         var client = _fixture.CreateClient();
 
-     // Act
+        // Act
         var response = await client.GetAsync("/api/preferences");
 
-   // Assert
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-  }
+    }
 
     [Fact]
     public async Task Get_WithAuth_Returns200()
     {
         // Arrange
-   var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
 
-   // Act
+        // Act
         var response = await client.GetAsync("/api/preferences");
 
         // Assert
@@ -57,12 +57,12 @@ public class PreferencesControllerTests
         var response = await client.GetAsync("/api/preferences");
         var result = await response.Content.ReadFromJsonAsync<GetPreferencesDto>();
 
-   // Assert
-  response.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
         result.Should().NotBeNull();
         result!.GenreIds.Should().NotBeNull();
         result.Length.Should().NotBeNullOrEmpty();
-}
+    }
 
     [Fact]
     public async Task SaveThenGet_ReturnsUpdatedPreferences()
@@ -70,13 +70,13 @@ public class PreferencesControllerTests
         // Arrange
         var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
 
-      var saveDto = new SavePreferenceDto
+        var saveDto = new SavePreferenceDto
         {
-  GenreIds = [28, 35, 878],
-    Length = "medium"
+            GenreIds = [28, 35, 878],
+            Length = "medium"
         };
 
-   // Act - Save preferences
+        // Act - Save preferences
         var saveResponse = await client.PostAsJsonAsync("/api/preferences", saveDto);
         saveResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
@@ -84,36 +84,36 @@ public class PreferencesControllerTests
         var getResponse = await client.GetAsync("/api/preferences");
         var result = await getResponse.Content.ReadFromJsonAsync<GetPreferencesDto>();
 
-    // Assert
- getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Assert
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         result.Should().NotBeNull();
         result!.GenreIds.Should().BeEquivalentTo(new[] { 28, 35, 878 });
-  result.Length.Should().Be("medium");
+        result.Length.Should().Be("medium");
     }
 
     [Fact]
     public async Task Save_WithInvalidLength_Returns400()
     {
-      // Arrange
+        // Arrange
         var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
 
         var saveDto = new SavePreferenceDto
         {
             GenreIds = [28],
-        Length = "invalid"
+            Length = "invalid"
         };
 
         // Act
         var response = await client.PostAsJsonAsync("/api/preferences", saveDto);
 
-    // Assert
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-[Fact]
+    [Fact]
     public async Task Save_WithoutAuth_Returns401()
     {
-   // Arrange
+        // Arrange
         var client = _fixture.CreateClient();
 
         var saveDto = new SavePreferenceDto
@@ -133,17 +133,17 @@ public class PreferencesControllerTests
     public async Task Save_WithEmptyGenres_Succeeds()
     {
         // Arrange
-   var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
 
         var saveDto = new SavePreferenceDto
         {
             GenreIds = [],
             Length = "short"
-  };
+        };
 
         // Act
         var saveResponse = await client.PostAsJsonAsync("/api/preferences", saveDto);
- var getResponse = await client.GetAsync("/api/preferences");
+        var getResponse = await client.GetAsync("/api/preferences");
         var result = await getResponse.Content.ReadFromJsonAsync<GetPreferencesDto>();
 
         // Assert
@@ -155,25 +155,25 @@ public class PreferencesControllerTests
     [Fact]
     public async Task Save_MultipleUpdates_LastWriteWins()
     {
-   // Arrange
+        // Arrange
         var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
 
-      // Act - Save first preference
+        // Act - Save first preference
         await client.PostAsJsonAsync("/api/preferences", new SavePreferenceDto
         {
-     GenreIds = [28],
-     Length = "short"
+            GenreIds = [28],
+            Length = "short"
         });
 
         // Act - Save second preference
-   await client.PostAsJsonAsync("/api/preferences", new SavePreferenceDto
+        await client.PostAsJsonAsync("/api/preferences", new SavePreferenceDto
         {
-     GenreIds = [35, 18],
-        Length = "long"
+            GenreIds = [35, 18],
+            Length = "long"
         });
 
-   // Act - Get final result
-   var getResponse = await client.GetAsync("/api/preferences");
+        // Act - Get final result
+        var getResponse = await client.GetAsync("/api/preferences");
         var result = await getResponse.Content.ReadFromJsonAsync<GetPreferencesDto>();
 
         // Assert

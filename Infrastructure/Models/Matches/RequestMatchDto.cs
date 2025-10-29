@@ -8,8 +8,8 @@ namespace Infrastructure.Models.Matches
         [Required]
         public string TargetUserId { get; set; } = "";
 
-     [Required]
-   [Range(1, int.MaxValue, ErrorMessage = "TmdbId must be a positive integer")]
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "TmdbId must be a positive integer")]
         public int TmdbId { get; set; }
     }
 }

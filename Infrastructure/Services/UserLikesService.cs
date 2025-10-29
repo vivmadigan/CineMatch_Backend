@@ -18,11 +18,18 @@ namespace Infrastructure.Services
 
         public async Task UpsertLikeAsync(string userId, int tmdbId, string? title, string? posterPath, string? releaseYear, CancellationToken ct)
         {
+            Console.WriteLine($"[UserLikesService] 💾 Upserting like: User={userId}, Movie={tmdbId}");
+     
             var row = await _db.UserMovieLikes.FirstOrDefaultAsync(x => x.UserId == userId && x.TmdbId == tmdbId, ct);
             if (row is null)
             {
                 row = new UserMovieLike { UserId = userId, TmdbId = tmdbId, CreatedAt = DateTime.UtcNow };
                 _db.UserMovieLikes.Add(row);
+                Console.WriteLine($"[UserLikesService]    ✅ NEW like created");
+            }
+            else
+            {
+                Console.WriteLine($"[UserLikesService]    ℹ️  Existing like found, updating metadata");
             }
 
             // Update snapshot each time (keeps latest name/poster/year)
@@ -32,6 +39,7 @@ namespace Infrastructure.Services
             row.ReleaseYear = releaseYear ?? row.ReleaseYear;
 
             await _db.SaveChangesAsync(ct);
+            Console.WriteLine($"[UserLikesService]    ✅ Like saved to database");
         }
 
         public async Task RemoveLikeAsync(string userId, int tmdbId, CancellationToken ct)
@@ -50,5 +58,13 @@ namespace Infrastructure.Services
                 .ToListAsync(ct);
         }
 
+        public async Task<IReadOnlyList<string>> GetUsersWhoLikedMovieAsync(int tmdbId, string excludeUserId, CancellationToken ct)
+        {
+            return await _db.UserMovieLikes.AsNoTracking()
+                .Where(x => x.TmdbId == tmdbId && x.UserId != excludeUserId)
+                .Select(x => x.UserId)
+                .Distinct()
+                .ToListAsync(ct);
+        }
     }
 }

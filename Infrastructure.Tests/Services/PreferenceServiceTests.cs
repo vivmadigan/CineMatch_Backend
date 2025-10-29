@@ -147,40 +147,40 @@ public class PreferenceServiceTests
     }
 
     [Fact]
-public async Task SaveAsync_PreservesGenreOrder()
+    public async Task SaveAsync_PreservesGenreOrder()
     {
- // Arrange
+        // Arrange
         var context = DbFixture.CreateContext();
         var service = new PreferenceService(context);
         var user = await DbFixture.CreateTestUserAsync(context);
 
-   var dto = new SavePreferenceDto
+        var dto = new SavePreferenceDto
         {
             GenreIds = new List<int> { 35, 12, 28, 18 }, // Specific order
- Length = "medium"
+            Length = "medium"
         };
 
-      // Act
+        // Act
         await service.SaveAsync(user.Id, dto, CancellationToken.None);
         var result = await service.GetAsync(user.Id, CancellationToken.None);
 
         // Assert
-      result.GenreIds.Should().ContainInOrder(35, 12, 28, 18);
+        result.GenreIds.Should().ContainInOrder(35, 12, 28, 18);
     }
 
     [Fact]
     public async Task SaveAsync_UpdatesTimestamp()
     {
-  // Arrange
+        // Arrange
         var context = DbFixture.CreateContext();
         var service = new PreferenceService(context);
-var user = await DbFixture.CreateTestUserAsync(context);
+        var user = await DbFixture.CreateTestUserAsync(context);
 
-    var dto1 = new SavePreferenceDto
-    {
+        var dto1 = new SavePreferenceDto
+        {
             GenreIds = new List<int> { 28 },
             Length = "short"
-   };
+        };
         await service.SaveAsync(user.Id, dto1, CancellationToken.None);
         var first = await service.GetAsync(user.Id, CancellationToken.None);
 
@@ -188,8 +188,8 @@ var user = await DbFixture.CreateTestUserAsync(context);
 
         var dto2 = new SavePreferenceDto
         {
-          GenreIds = new List<int> { 35 },
-       Length = "long"
+            GenreIds = new List<int> { 35 },
+            Length = "long"
         };
 
         // Act
@@ -197,28 +197,28 @@ var user = await DbFixture.CreateTestUserAsync(context);
         var second = await service.GetAsync(user.Id, CancellationToken.None);
 
         // Assert
-     second.GenreIds.Should().Contain(35);
+        second.GenreIds.Should().Contain(35);
         second.GenreIds.Should().NotContain(28);
     }
 
     [Fact]
     public async Task SaveAsync_WithNegativeGenreId_ThrowsArgumentException()
     {
- // Arrange
-   var context = DbFixture.CreateContext();
+        // Arrange
+        var context = DbFixture.CreateContext();
         var service = new PreferenceService(context);
         var user = await DbFixture.CreateTestUserAsync(context);
 
-    var dto = new SavePreferenceDto
-  {
-          GenreIds = new List<int> { -1, 28 }, // Negative ID
-    Length = "medium"
-    };
+        var dto = new SavePreferenceDto
+        {
+            GenreIds = new List<int> { -1, 28 }, // Negative ID
+            Length = "medium"
+        };
 
-      // Act & Assert - Service NOW validates negative IDs
+        // Act & Assert - Service NOW validates negative IDs
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
           service.SaveAsync(user.Id, dto, CancellationToken.None));
- 
+
         exception.Message.Should().Contain("Genre IDs must be positive integers");
     }
 
@@ -226,80 +226,80 @@ var user = await DbFixture.CreateTestUserAsync(context);
     public async Task SaveAsync_WithNullDto_ThrowsArgumentNullException()
     {
         // Arrange
-     var context = DbFixture.CreateContext();
-var service = new PreferenceService(context);
-      var user = await DbFixture.CreateTestUserAsync(context);
+        var context = DbFixture.CreateContext();
+        var service = new PreferenceService(context);
+        var user = await DbFixture.CreateTestUserAsync(context);
 
-     // Act & Assert - Service NOW validates null DTO
-     var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-      service.SaveAsync(user.Id, null!, CancellationToken.None));
-        
+        // Act & Assert - Service NOW validates null DTO
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+         service.SaveAsync(user.Id, null!, CancellationToken.None));
+
         exception.ParamName.Should().Be("dto");
     }
 
     [Fact]
- public async Task SaveAsync_WithVeryLargeGenreList_ThrowsArgumentException()
+    public async Task SaveAsync_WithVeryLargeGenreList_ThrowsArgumentException()
     {
-    // Arrange
- var context = DbFixture.CreateContext();
-var service = new PreferenceService(context);
-    var user = await DbFixture.CreateTestUserAsync(context);
+        // Arrange
+        var context = DbFixture.CreateContext();
+        var service = new PreferenceService(context);
+        var user = await DbFixture.CreateTestUserAsync(context);
 
-     var dto = new SavePreferenceDto
- {
-       GenreIds = Enumerable.Range(1, 1000).ToList(), // 1000 genres - exceeds limit!
-   Length = "medium"
+        var dto = new SavePreferenceDto
+        {
+            GenreIds = Enumerable.Range(1, 1000).ToList(), // 1000 genres - exceeds limit!
+            Length = "medium"
         };
 
-  // Act & Assert - Service NOW limits list size to 50
-   var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-    service.SaveAsync(user.Id, dto, CancellationToken.None));
-  
-     exception.Message.Should().Contain("Cannot select more than 50 genres");
+        // Act & Assert - Service NOW limits list size to 50
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+         service.SaveAsync(user.Id, dto, CancellationToken.None));
+
+        exception.Message.Should().Contain("Cannot select more than 50 genres");
     }
 
     [Fact]
     public async Task SaveAsync_WithZeroGenreId_ThrowsArgumentException()
     {
-   // Arrange
+        // Arrange
         var context = DbFixture.CreateContext();
         var service = new PreferenceService(context);
-   var user = await DbFixture.CreateTestUserAsync(context);
+        var user = await DbFixture.CreateTestUserAsync(context);
 
-    var dto = new SavePreferenceDto
-      {
-   GenreIds = new List<int> { 0, 28 }, // Zero is invalid
-   Length = "medium"
-    };
+        var dto = new SavePreferenceDto
+        {
+            GenreIds = new List<int> { 0, 28 }, // Zero is invalid
+            Length = "medium"
+        };
 
         // Act & Assert - Service validates IDs must be positive (> 0)
-   var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-     service.SaveAsync(user.Id, dto, CancellationToken.None));
- 
-    exception.Message.Should().Contain("Genre IDs must be positive integers");
-  }
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+          service.SaveAsync(user.Id, dto, CancellationToken.None));
+
+        exception.Message.Should().Contain("Genre IDs must be positive integers");
+    }
 
     [Fact]
     public async Task SaveAsync_WithExactly50Genres_Succeeds()
     {
-   // Arrange
+        // Arrange
         var context = DbFixture.CreateContext();
         var service = new PreferenceService(context);
-  var user = await DbFixture.CreateTestUserAsync(context);
+        var user = await DbFixture.CreateTestUserAsync(context);
 
-     var dto = new SavePreferenceDto
+        var dto = new SavePreferenceDto
         {
-      GenreIds = Enumerable.Range(1, 50).ToList(), // Exactly at limit
-   Length = "medium"
- };
+            GenreIds = Enumerable.Range(1, 50).ToList(), // Exactly at limit
+            Length = "medium"
+        };
 
         // Act
-   await service.SaveAsync(user.Id, dto, CancellationToken.None);
-  var result = await service.GetAsync(user.Id, CancellationToken.None);
+        await service.SaveAsync(user.Id, dto, CancellationToken.None);
+        var result = await service.GetAsync(user.Id, CancellationToken.None);
 
-   // Assert
+        // Assert
         result.GenreIds.Should().HaveCount(50);
- }
+    }
 
     [Fact]
     public async Task SaveAsync_With51Genres_ThrowsArgumentException()
@@ -307,19 +307,19 @@ var service = new PreferenceService(context);
         // Arrange
         var context = DbFixture.CreateContext();
         var service = new PreferenceService(context);
-    var user = await DbFixture.CreateTestUserAsync(context);
+        var user = await DbFixture.CreateTestUserAsync(context);
 
-   var dto = new SavePreferenceDto
+        var dto = new SavePreferenceDto
         {
-       GenreIds = Enumerable.Range(1, 51).ToList(), // One over limit
-Length = "medium"
+            GenreIds = Enumerable.Range(1, 51).ToList(), // One over limit
+            Length = "medium"
         };
 
-// Act & Assert - Service limits at 50
-   var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-      service.SaveAsync(user.Id, dto, CancellationToken.None));
-        
- exception.Message.Should().Contain("Cannot select more than 50 genres");
+        // Act & Assert - Service limits at 50
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+           service.SaveAsync(user.Id, dto, CancellationToken.None));
+
+        exception.Message.Should().Contain("Cannot select more than 50 genres");
     }
 
     #endregion

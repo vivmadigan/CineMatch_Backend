@@ -11,5 +11,6 @@ namespace Infrastructure.Services
     {
         Task<GetPreferencesDto> GetAsync(string userId, CancellationToken ct);
         Task SaveAsync(string userId, SavePreferenceDto dto, CancellationToken ct);
+        Task DeleteAsync(string userId, CancellationToken ct);
     }
 }
