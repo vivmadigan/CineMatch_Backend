@@ -111,7 +111,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
           .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-          .WithHeaders("Authorization", "Content-Type")
+          .WithHeaders()
            .WithExposedHeaders("*");
         // Note: No AllowCredentials() - we use bearer tokens in Authorization header or query string
     });
