@@ -107,7 +107,7 @@ builder.Services.AddCors(options =>
 {
     // Development policy for frontend at localhost:5173 (Vite default)
     // Supports both regular HTTP requests and SignalR WebSocket connections
-    options.AddPolicy("DevClient", policy =>
+    options.AddPolicy("frontend-dev", policy =>
     {
         policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
           .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
@@ -173,16 +173,7 @@ app.UseRewriter(new RewriteOptions().AddRedirect("^$", "swagger"));
 app.UseHttpsRedirection();
 
 // Apply CORS policies (before authentication/authorization)
-if (app.Environment.IsDevelopment())
-{
-    // Named policy for frontend at localhost:5173 (includes SignalR support)
-    app.UseCors("DevClient");
-}
-else
-{
-  // Production: allow any origin (can be restricted later)
-    app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-}
+app.UseCors("frontend-dev");
 
 // Authentication BEFORE Authorization
 app.UseAuthentication();
