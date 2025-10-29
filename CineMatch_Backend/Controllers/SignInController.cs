@@ -23,7 +23,7 @@ namespace Presentation.Controllers
             if (ModelState.IsValid)
             {
                 var user = await _userManager.FindByEmailAsync(model.Email);
-                if(user != null)
+                if (user != null)
                 {
                     var signInResult = await _signInManager.CheckPasswordSignInAsync(user, model.Password, lockoutOnFailure: false);
                     if (signInResult.Succeeded)
@@ -39,7 +39,7 @@ namespace Presentation.Controllers
                 }
 
             }
-            return Unauthorized(new { error = "Invalid email or password"});
+            return Unauthorized(new { error = "Invalid email or password" });
         }
     }
 }

@@ -2,6 +2,7 @@
 using Infrastructure.Services;
 using Infrastructure.Services.Matches;
 using Infrastructure.Tests.Helpers;
+using Infrastructure.Tests.Mocks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,7 +30,7 @@ public class MatchServiceTests
         await likesService.UpsertLikeAsync(user1.Id, 27205, "Inception", null, null, CancellationToken.None);
         await likesService.UpsertLikeAsync(user2.Id, 27205, "Inception", null, null, CancellationToken.None);
 
-        var matchService = new MatchService(context);
+        var matchService = new MatchService(context, new MockNotificationService());
 
         // Act
         var candidates = await matchService.GetCandidatesAsync(user1.Id, 20, CancellationToken.None);
@@ -62,7 +63,7 @@ public class MatchServiceTests
         // User2 likes 1 overlapping movie
         await likesService.UpsertLikeAsync(user2.Id, 27205, "Inception", null, null, CancellationToken.None);
 
-        var matchService = new MatchService(context);
+        var matchService = new MatchService(context, new MockNotificationService());
 
         // Act
         var candidates = await matchService.GetCandidatesAsync(currentUser.Id, 20, CancellationToken.None);
@@ -83,7 +84,7 @@ public class MatchServiceTests
         var user1 = await DbFixture.CreateTestUserAsync(context);
         var user2 = await DbFixture.CreateTestUserAsync(context);
 
-        var matchService = new MatchService(context);
+        var matchService = new MatchService(context, new MockNotificationService());
 
         // User1 requests User2
         var result1 = await matchService.RequestAsync(user1.Id, user2.Id, 27205, CancellationToken.None);

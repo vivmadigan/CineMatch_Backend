@@ -18,49 +18,49 @@ public class TmdbClientTests
 {
     private static ILogger<TmdbClient> CreateMockLogger()
     {
-      return new Mock<ILogger<TmdbClient>>().Object;
+        return new Mock<ILogger<TmdbClient>>().Object;
     }
 
-  [Fact]
+    [Fact]
     public async Task DiscoverAsync_WithMissingApiKey_ThrowsInvalidOperationException()
     {
-   // Arrange
-     var mockHandler = new MockTmdbHttpHandler();
-     mockHandler.SetupFailure("/discover/movie", HttpStatusCode.Unauthorized);
+        // Arrange
+        var mockHandler = new MockTmdbHttpHandler();
+        mockHandler.SetupFailure("/discover/movie", HttpStatusCode.Unauthorized);
 
-  var httpClient = new HttpClient(mockHandler)
-  {
-      BaseAddress = new Uri("https://api.themoviedb.org/3/")
+        var httpClient = new HttpClient(mockHandler)
+        {
+            BaseAddress = new Uri("https://api.themoviedb.org/3/")
         };
 
-var options = Microsoft.Extensions.Options.Options.Create(new TmdbOptions
-     {
-     BaseUrl = "https://api.themoviedb.org/3",
-  ApiKey = "", // Missing API key
-   ImageBase = "https://image.tmdb.org/t/p/",
-   DefaultLanguage = "en-US",
-          DefaultRegion = "US"
-  });
+        var options = Microsoft.Extensions.Options.Options.Create(new TmdbOptions
+        {
+            BaseUrl = "https://api.themoviedb.org/3",
+            ApiKey = "", // Missing API key
+            ImageBase = "https://image.tmdb.org/t/p/",
+            DefaultLanguage = "en-US",
+            DefaultRegion = "US"
+        });
 
-var logger = CreateMockLogger();
+        var logger = CreateMockLogger();
         var client = new TmdbClient(httpClient, options, logger);
 
         // Act & Assert
-   await Assert.ThrowsAsync<InvalidOperationException>(() =>
-      client.DiscoverAsync([], null, null, 1, null, null, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+           client.DiscoverAsync([], null, null, 1, null, null, CancellationToken.None));
     }
 
- [Fact]
+    [Fact]
     public async Task DiscoverAsync_WithGenresAndRuntime_BuildsCorrectQuery()
     {
-     // Arrange
-   var mockHandler = new MockTmdbHttpHandler();
-    mockHandler.SetupResponse("/discover/movie", new TmdbDiscoverResponse
-  {
+        // Arrange
+        var mockHandler = new MockTmdbHttpHandler();
+        mockHandler.SetupResponse("/discover/movie", new TmdbDiscoverResponse
+        {
             Page = 1,
- Results =
-     [
-      new TmdbMovie
+            Results =
+         [
+          new TmdbMovie
         {
     Id = 27205,
   Title = "Inception",
@@ -71,29 +71,29 @@ var logger = CreateMockLogger();
           ReleaseDate = "2010-07-16",
   VoteAverage = 8.4
      }
-       ],
-    TotalPages = 1,
-   TotalResults = 1
+           ],
+            TotalPages = 1,
+            TotalResults = 1
         });
 
         var httpClient = new HttpClient(mockHandler)
         {
-         BaseAddress = new Uri("https://api.themoviedb.org/3/")
+            BaseAddress = new Uri("https://api.themoviedb.org/3/")
         };
 
-  var options = Microsoft.Extensions.Options.Options.Create(new TmdbOptions
-     {
-      BaseUrl = "https://api.themoviedb.org/3",
-       ApiKey = "test-api-key",
-   ImageBase = "https://image.tmdb.org/t/p/",
-        DefaultLanguage = "en-US",
-  DefaultRegion = "US"
+        var options = Microsoft.Extensions.Options.Options.Create(new TmdbOptions
+        {
+            BaseUrl = "https://api.themoviedb.org/3",
+            ApiKey = "test-api-key",
+            ImageBase = "https://image.tmdb.org/t/p/",
+            DefaultLanguage = "en-US",
+            DefaultRegion = "US"
         });
 
- var logger = CreateMockLogger();
+        var logger = CreateMockLogger();
         var client = new TmdbClient(httpClient, options, logger);
 
-    // Act
+        // Act
         var result = await client.DiscoverAsync(
          [28, 35],
  100,
@@ -103,60 +103,60 @@ var logger = CreateMockLogger();
       "US",
  CancellationToken.None);
 
-  // Assert
+        // Assert
         result.Should().NotBeNull();
         result.Results.Should().ContainSingle();
-    result.Results.First().Title.Should().Be("Inception");
+        result.Results.First().Title.Should().Be("Inception");
 
-  // Verify request was made
-    mockHandler.Requests.Should().ContainSingle();
+        // Verify request was made
+        mockHandler.Requests.Should().ContainSingle();
         var request = mockHandler.Requests.First();
-      request.RequestUri.Should().NotBeNull();
-        
-   var query = request.RequestUri!.Query;
-      query.Should().Contain("with_genres=28,35");
-query.Should().Contain("with_runtime.gte=100");
- query.Should().Contain("with_runtime.lte=140");
+        request.RequestUri.Should().NotBeNull();
+
+        var query = request.RequestUri!.Query;
+        query.Should().Contain("with_genres=28,35");
+        query.Should().Contain("with_runtime.gte=100");
+        query.Should().Contain("with_runtime.lte=140");
     }
 
     [Fact]
     public async Task GetGenresAsync_ReturnsGenres()
     {
-   // Arrange
-   var mockHandler = new MockTmdbHttpHandler();
-    mockHandler.SetupResponse("/genre/movie/list", new TmdbGenreResponse
-   {
-         Genres =
-       [
-new TmdbGenre { Id = 28, Name = "Action" },
+        // Arrange
+        var mockHandler = new MockTmdbHttpHandler();
+        mockHandler.SetupResponse("/genre/movie/list", new TmdbGenreResponse
+        {
+            Genres =
+           [
+    new TmdbGenre { Id = 28, Name = "Action" },
     new TmdbGenre { Id = 35, Name = "Comedy" },
     new TmdbGenre { Id = 18, Name = "Drama" }
-            ]
-   });
+                ]
+        });
 
-     var httpClient = new HttpClient(mockHandler)
-  {
+        var httpClient = new HttpClient(mockHandler)
+        {
             BaseAddress = new Uri("https://api.themoviedb.org/3/")
         };
 
- var options = Microsoft.Extensions.Options.Options.Create(new TmdbOptions
- {
-   BaseUrl = "https://api.themoviedb.org/3",
- ApiKey = "test-api-key",
-     ImageBase = "https://image.tmdb.org/t/p/",
-     DefaultLanguage = "en-US",
-    DefaultRegion = "US"
-  });
+        var options = Microsoft.Extensions.Options.Options.Create(new TmdbOptions
+        {
+            BaseUrl = "https://api.themoviedb.org/3",
+            ApiKey = "test-api-key",
+            ImageBase = "https://image.tmdb.org/t/p/",
+            DefaultLanguage = "en-US",
+            DefaultRegion = "US"
+        });
 
-  var logger = CreateMockLogger();
+        var logger = CreateMockLogger();
         var client = new TmdbClient(httpClient, options, logger);
 
-   // Act
+        // Act
         var result = await client.GetGenresAsync("en-US", CancellationToken.None);
 
-   // Assert
-    result.Should().NotBeNull();
+        // Assert
+        result.Should().NotBeNull();
         result.Genres.Should().HaveCount(3);
         result.Genres.Should().Contain(g => g.Name == "Action" && g.Id == 28);
- }
+    }
 }

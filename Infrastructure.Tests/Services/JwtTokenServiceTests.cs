@@ -16,20 +16,20 @@ namespace Infrastructure.Tests.Services;
 /// </summary>
 public class JwtTokenServiceTests
 {
- private static JwtTokenService CreateTokenService()
+    private static JwtTokenService CreateTokenService()
     {
         var configData = new Dictionary<string, string?>
         {
             ["Jwt:SecretKey"] = "TestSecretKey_AtLeast32CharactersLong_ForHS256Algorithm!",
- ["Jwt:Issuer"] = "TestIssuer",
-      ["Jwt:Audience"] = "TestAudience"
+            ["Jwt:Issuer"] = "TestIssuer",
+            ["Jwt:Audience"] = "TestAudience"
         };
 
         var configuration = new ConfigurationBuilder()
        .AddInMemoryCollection(configData)
           .Build();
 
- return new JwtTokenService(configuration);
+        return new JwtTokenService(configuration);
     }
 
     #region Existing Tests
@@ -40,28 +40,28 @@ public class JwtTokenServiceTests
         // Arrange
         var user = new UserEntity
         {
-     Id = "test-user-123",
- Email = "test@example.com",
-   DisplayName = "TestUser"
+            Id = "test-user-123",
+            Email = "test@example.com",
+            DisplayName = "TestUser"
         };
         var service = CreateTokenService();
 
         // Act
- var token = service.CreateToken(user);
+        var token = service.CreateToken(user);
 
         // Assert
         token.Should().NotBeNullOrEmpty();
- token.Split('.').Should().HaveCount(3); // JWT format: header.payload.signature
+        token.Split('.').Should().HaveCount(3); // JWT format: header.payload.signature
     }
 
     [Fact]
     public void CreateToken_ContainsExpectedClaims()
     {
-     // Arrange
+        // Arrange
         var user = new UserEntity
         {
-         Id = "test-user-123",
-  Email = "test@example.com",
+            Id = "test-user-123",
+            Email = "test@example.com",
             DisplayName = "TestUser"
         };
         var service = CreateTokenService();
@@ -72,28 +72,28 @@ public class JwtTokenServiceTests
         var jwtToken = handler.ReadJwtToken(token);
 
         // Assert
-    jwtToken.Claims.Should().Contain(c => c.Type == ClaimTypes.NameIdentifier && c.Value == "test-user-123");
+        jwtToken.Claims.Should().Contain(c => c.Type == ClaimTypes.NameIdentifier && c.Value == "test-user-123");
         jwtToken.Claims.Should().Contain(c => c.Type == ClaimTypes.Email && c.Value == "test@example.com");
     }
 
     [Fact]
     public void CreateToken_WithNullUser_ThrowsArgumentNullException()
     {
-   // Arrange
+        // Arrange
         var service = CreateTokenService();
 
         // Act - JwtTokenService may not validate null, let's check if it throws or handles gracefully
-     var act = () => service.CreateToken(null!);
+        var act = () => service.CreateToken(null!);
 
         // Assert - Either throws or handles gracefully
-     try
-     {
-    var token = service.CreateToken(null!);
-     // If no exception, that's implementation choice
-    }
+        try
+        {
+            var token = service.CreateToken(null!);
+            // If no exception, that's implementation choice
+        }
         catch (Exception)
-   {
-     // Exception is fine too
+        {
+            // Exception is fine too
         }
     }
 
@@ -104,23 +104,23 @@ public class JwtTokenServiceTests
     [Fact]
     public void CreateToken_WithValidUser_TokenHasCorrectExpiration()
     {
-    // Arrange
+        // Arrange
         var user = new UserEntity
         {
- Id = "user-123",
-          Email = "test@example.com",
+            Id = "user-123",
+            Email = "test@example.com",
             DisplayName = "TestUser"
-    };
+        };
         var service = CreateTokenService();
 
         // Act
-  var token = service.CreateToken(user);
+        var token = service.CreateToken(user);
         var handler = new JwtSecurityTokenHandler();
-      var jwtToken = handler.ReadJwtToken(token);
+        var jwtToken = handler.ReadJwtToken(token);
 
         // Assert - Token expires in 7 days (from JwtTokenService implementation)
         var expirationTime = jwtToken.ValidTo;
-  expirationTime.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromMinutes(1));
+        expirationTime.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromMinutes(1));
     }
 
     [Fact]
@@ -130,20 +130,20 @@ public class JwtTokenServiceTests
         var userId = "user-456";
         var user = new UserEntity
         {
-       Id = userId,
+            Id = userId,
             Email = "test@example.com",
-    DisplayName = "TestUser"
+            DisplayName = "TestUser"
         };
-var service = CreateTokenService();
+        var service = CreateTokenService();
 
         // Act
-     var token = service.CreateToken(user);
-   var handler = new JwtSecurityTokenHandler();
-   var jwtToken = handler.ReadJwtToken(token);
+        var token = service.CreateToken(user);
+        var handler = new JwtSecurityTokenHandler();
+        var jwtToken = handler.ReadJwtToken(token);
 
-   // Assert
+        // Assert
         var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
-    userIdClaim.Should().NotBeNull();
+        userIdClaim.Should().NotBeNull();
         userIdClaim!.Value.Should().Be(userId);
     }
 
@@ -151,19 +151,19 @@ var service = CreateTokenService();
     public void CreateToken_ContainsEmailClaim()
     {
         // Arrange
-      var email = "user@example.com";
-  var user = new UserEntity
-   {
-         Id = "user-123",
+        var email = "user@example.com";
+        var user = new UserEntity
+        {
+            Id = "user-123",
             Email = email,
-     DisplayName = "TestUser"
+            DisplayName = "TestUser"
         };
         var service = CreateTokenService();
 
         // Act
         var token = service.CreateToken(user);
- var handler = new JwtSecurityTokenHandler();
-      var jwtToken = handler.ReadJwtToken(token);
+        var handler = new JwtSecurityTokenHandler();
+        var jwtToken = handler.ReadJwtToken(token);
 
         // Assert
         var emailClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
@@ -171,26 +171,26 @@ var service = CreateTokenService();
         emailClaim!.Value.Should().Be(email);
     }
 
- [Fact]
+    [Fact]
     public void CreateToken_ContainsDisplayNameClaim()
     {
- // Arrange
+        // Arrange
         var displayName = "CoolUser123";
         var user = new UserEntity
         {
-         Id = "user-123",
-       Email = "test@example.com",
-    DisplayName = displayName
+            Id = "user-123",
+            Email = "test@example.com",
+            DisplayName = displayName
         };
         var service = CreateTokenService();
 
         // Act
-    var token = service.CreateToken(user);
+        var token = service.CreateToken(user);
         var handler = new JwtSecurityTokenHandler();
         var jwtToken = handler.ReadJwtToken(token);
 
- // Assert
-var nameClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "displayName");
+        // Assert
+        var nameClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "displayName");
         nameClaim.Should().NotBeNull();
         nameClaim!.Value.Should().Be(displayName);
     }
@@ -200,86 +200,86 @@ var nameClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "displayName");
     {
         // Arrange
         var user = new UserEntity
-    {
-     Id = "user-123",
+        {
+            Id = "user-123",
             Email = "test@example.com",
             DisplayName = "TestUser"
         };
-var service = CreateTokenService();
+        var service = CreateTokenService();
 
-   // Act
-      var token = service.CreateToken(user);
+        // Act
+        var token = service.CreateToken(user);
         var handler = new JwtSecurityTokenHandler();
 
         // Assert
- handler.CanReadToken(token).Should().BeTrue();
+        handler.CanReadToken(token).Should().BeTrue();
     }
 
     [Fact]
- public void CreateToken_CanBeDecoded()
+    public void CreateToken_CanBeDecoded()
     {
         // Arrange
         var user = new UserEntity
         {
-        Id = "user-123",
-          Email = "test@example.com",
+            Id = "user-123",
+            Email = "test@example.com",
             DisplayName = "TestUser"
- };
+        };
         var service = CreateTokenService();
 
         // Act
-var token = service.CreateToken(user);
-      var handler = new JwtSecurityTokenHandler();
+        var token = service.CreateToken(user);
+        var handler = new JwtSecurityTokenHandler();
         var jwtToken = handler.ReadJwtToken(token);
 
-   // Assert
+        // Assert
         jwtToken.Should().NotBeNull();
-      jwtToken.Claims.Should().NotBeEmpty();
-  }
+        jwtToken.Claims.Should().NotBeEmpty();
+    }
 
     [Fact]
     public void CreateToken_SignatureIsValid()
     {
-     // Arrange
-   var service = CreateTokenService();
-      var user = new UserEntity
+        // Arrange
+        var service = CreateTokenService();
+        var user = new UserEntity
         {
-          Id = "user-123",
+            Id = "user-123",
             Email = "test@example.com",
-         DisplayName = "TestUser"
-  };
+            DisplayName = "TestUser"
+        };
 
-   // Act
+        // Act
         var token = service.CreateToken(user);
         var handler = new JwtSecurityTokenHandler();
 
         var validationParameters = new TokenValidationParameters
         {
-     ValidateIssuer = true,
+            ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
- ValidateIssuerSigningKey = true,
-          ValidIssuer = "TestIssuer",
-      ValidAudience = "TestAudience",
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = "TestIssuer",
+            ValidAudience = "TestAudience",
             IssuerSigningKey = new SymmetricSecurityKey(
        Encoding.UTF8.GetBytes("TestSecretKey_AtLeast32CharactersLong_ForHS256Algorithm!"))
         };
 
-  // Assert - Should not throw
+        // Assert - Should not throw
         var principal = handler.ValidateToken(token, validationParameters, out var validatedToken);
-     principal.Should().NotBeNull();
-  validatedToken.Should().NotBeNull();
+        principal.Should().NotBeNull();
+        validatedToken.Should().NotBeNull();
     }
 
     [Fact]
     public void CreateToken_SameUserGeneratesDifferentTokens()
-  {
+    {
         // Arrange
         var user = new UserEntity
         {
-          Id = "user-123",
- Email = "test@example.com",
-    DisplayName = "TestUser"
+            Id = "user-123",
+            Email = "test@example.com",
+            DisplayName = "TestUser"
         };
         var service = CreateTokenService();
 
@@ -288,7 +288,7 @@ var token = service.CreateToken(user);
         Thread.Sleep(1000); // Ensure different issued-at time
         var token2 = service.CreateToken(user);
 
-    // Assert - Tokens should be different due to different iat claim
+        // Assert - Tokens should be different due to different iat claim
         token1.Should().NotBe(token2);
     }
 
@@ -297,14 +297,14 @@ var token = service.CreateToken(user);
     {
         // Arrange
         var user = new UserEntity
-     {
+        {
             Id = "user-123",
-     Email = null, // Null email
+            Email = null, // Null email
             DisplayName = "TestUser"
         };
         var service = CreateTokenService();
 
-   // Act - Should handle gracefully (implementation converts null to empty string)
+        // Act - Should handle gracefully (implementation converts null to empty string)
         var token = service.CreateToken(user);
 
         // Assert
@@ -313,39 +313,39 @@ var token = service.CreateToken(user);
 
     [Fact]
     public void CreateToken_WithEmptyUserId_ThrowsException()
- {
+    {
         // Arrange
         var user = new UserEntity
-    {
-     Id = "", // Empty user ID
-   Email = "test@example.com",
- DisplayName = "TestUser"
+        {
+            Id = "", // Empty user ID
+            Email = "test@example.com",
+            DisplayName = "TestUser"
         };
-  var service = CreateTokenService();
+        var service = CreateTokenService();
 
         // Act & Assert - May not validate empty ID
-   var act = () => service.CreateToken(user);
+        var act = () => service.CreateToken(user);
         // Implementation may accept empty ID and just create a token
-     try
+        try
         {
-   var token = service.CreateToken(user);
-    // If no exception, implementation accepts it
-        token.Should().NotBeNullOrEmpty();
- }
-  catch (Exception)
-  {
-         // Exception is also acceptable
-  }
+            var token = service.CreateToken(user);
+            // If no exception, implementation accepts it
+            token.Should().NotBeNullOrEmpty();
+        }
+        catch (Exception)
+        {
+            // Exception is also acceptable
+        }
     }
 
-[Fact]
+    [Fact]
     public void CreateToken_WithNullDisplayName_DoesNotThrow()
     {
         // Arrange
         var user = new UserEntity
         {
-     Id = "user-123",
-   Email = "test@example.com",
+            Id = "user-123",
+            Email = "test@example.com",
             DisplayName = null // Null display name
         };
         var service = CreateTokenService();
@@ -353,7 +353,7 @@ var token = service.CreateToken(user);
         // Act - Should handle gracefully (implementation converts null to empty string)
         var token = service.CreateToken(user);
 
-      // Assert
+        // Assert
         token.Should().NotBeNullOrEmpty();
     }
 

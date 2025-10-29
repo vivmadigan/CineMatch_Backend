@@ -136,13 +136,13 @@ namespace Infrastructure.External
         }
 
         public async Task<TmdbDiscoverResponse> DiscoverAsync(
-            IEnumerable<int> genreIds, int? runtimeMin, int? runtimeMax, 
+            IEnumerable<int> genreIds, int? runtimeMin, int? runtimeMax,
             int page, string? language, string? region, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(_opt.ApiKey))
-      throw new InvalidOperationException("TMDB ApiKey is missing. Set TMDB:ApiKey in user-secrets.");
+                throw new InvalidOperationException("TMDB ApiKey is missing. Set TMDB:ApiKey in user-secrets.");
 
-  var qs = new List<string>
+            var qs = new List<string>
     {
         $"language={Uri.EscapeDataString(Lang(language))}",
     $"region={Uri.EscapeDataString(Reg(region))}",
@@ -154,36 +154,36 @@ namespace Infrastructure.External
         $"api_key={_opt.ApiKey}"
       };
 
-      // Add genre filter if any genres specified (TMDB uses comma-separated with AND logic)
-   var genreList = genreIds?.Where(g => g > 0).ToList();
+            // Add genre filter if any genres specified (TMDB uses comma-separated with AND logic)
+            var genreList = genreIds?.Where(g => g > 0).ToList();
             if (genreList?.Count > 0)
-         qs.Add($"with_genres={string.Join(',', genreList)}");
+                qs.Add($"with_genres={string.Join(',', genreList)}");
 
-      // Add runtime filters (TMDB uses with_runtime.gte and with_runtime.lte)
- if (runtimeMin.HasValue)
-        qs.Add($"with_runtime.gte={runtimeMin.Value}");
-       if (runtimeMax.HasValue)
-       qs.Add($"with_runtime.lte={runtimeMax.Value}");
+            // Add runtime filters (TMDB uses with_runtime.gte and with_runtime.lte)
+            if (runtimeMin.HasValue)
+                qs.Add($"with_runtime.gte={runtimeMin.Value}");
+            if (runtimeMax.HasValue)
+                qs.Add($"with_runtime.lte={runtimeMax.Value}");
 
-    var url = $"discover/movie?{string.Join('&', qs)}"; // no leading slash
+            var url = $"discover/movie?{string.Join('&', qs)}"; // no leading slash
 
             using var res = await _http.GetAsync(url, ct);
             _logger.LogInformation("TMDB request: {Uri}", res.RequestMessage?.RequestUri);
 
             if (!res.IsSuccessStatusCode)
-  {
-       var body = await res.Content.ReadAsStringAsync(ct);
-   _logger.LogWarning("TMDB discover (filtered) failed: {Status} {Body}", (int)res.StatusCode, body);
- return new TmdbDiscoverResponse();
+            {
+                var body = await res.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning("TMDB discover (filtered) failed: {Status} {Body}", (int)res.StatusCode, body);
+                return new TmdbDiscoverResponse();
             }
 
-      await using var stream = await res.Content.ReadAsStreamAsync(ct);
+            await using var stream = await res.Content.ReadAsStreamAsync(ct);
             var data = await JsonSerializer.DeserializeAsync<TmdbDiscoverResponse>(
      stream,
    new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
        ct);
 
-       return data ?? new TmdbDiscoverResponse();
+            return data ?? new TmdbDiscoverResponse();
         }
     }
 }

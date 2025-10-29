@@ -6,7 +6,7 @@ namespace Infrastructure.Data.Entities
 {
     // EF ENTITY — a chat message sent in a room.
     // Messages are immutable once sent (no edit/delete in MVP).
- //
+    //
     // Keys & Indexes:
     // - GUID PK for unique identification
     // - Composite index (RoomId, SentAt DESC) for fast chronological retrieval
@@ -17,17 +17,17 @@ namespace Infrastructure.Data.Entities
     public class ChatMessage
     {
         [Key]
-     public Guid Id { get; set; } = Guid.NewGuid();
+        public Guid Id { get; set; } = Guid.NewGuid();
 
-    public Guid RoomId { get; set; }
+        public Guid RoomId { get; set; }
 
- [Required]
+        [Required]
         [MaxLength(450)]
         public string SenderId { get; set; } = "";
 
         [Required]
         [MaxLength(2000)]
-      public string Text { get; set; } = "";
+        public string Text { get; set; } = "";
 
         public DateTime SentAt { get; set; } = DateTime.UtcNow;
 
@@ -35,7 +35,7 @@ namespace Infrastructure.Data.Entities
         [ForeignKey(nameof(RoomId))]
         public ChatRoom? Room { get; set; }
 
-      [ForeignKey(nameof(SenderId))]
-     public UserEntity? Sender { get; set; }
+        [ForeignKey(nameof(SenderId))]
+        public UserEntity? Sender { get; set; }
     }
 }

@@ -3,7 +3,7 @@ using Infrastructure.Data.Entities;
 using Infrastructure.Services;
 using Infrastructure.Services.Matches;
 using Infrastructure.Services.Chat;
-using Infrastructure.External; 
+using Infrastructure.External;
 using Infrastructure.Options;
 using Presentation.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -105,15 +105,14 @@ builder.Services.AddAuthorization();
 // CORS policies
 builder.Services.AddCors(options =>
 {
-    // Development policy for frontend at localhost:5173 (Vite default)
+    // Development policy for frontend at localhost:5173 and 5174 (Vite default + HTTPS)
     // Supports both regular HTTP requests and SignalR WebSocket connections
     options.AddPolicy("frontend-dev", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
-          .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-          .WithHeaders()
-           .WithExposedHeaders("*");
-        // Note: No AllowCredentials() - we use bearer tokens in Authorization header or query string
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173", "https://localhost:5174")
+          .AllowAnyMethod()
+          .AllowAnyHeader()
+          .AllowCredentials(); // Required for Authorization header to work
     });
 });
 
@@ -121,10 +120,11 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IPreferenceService, PreferenceService>();
 builder.Services.AddScoped<IUserLikesService, UserLikesService>();
+builder.Services.AddScoped<Infrastructure.Services.Notifications.INotificationService, Presentation.Hubs.SignalRNotificationService>(); // ? NEW
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 
-// SignalR for real-time chat
+// SignalR for real-time chat and notifications
 builder.Services.AddSignalR();
 
 builder.Services.AddControllers();
