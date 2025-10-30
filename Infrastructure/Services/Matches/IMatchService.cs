@@ -28,17 +28,6 @@ namespace Infrastructure.Services.Matches
         Task<MatchResultDto> RequestAsync(string requestorId, string targetUserId, int tmdbId, CancellationToken ct);
 
         /// <summary>
-        /// Automatically create ONE-WAY match requests when a user likes a movie.
-        /// Finds all other users who liked the same movie and creates requests FROM current user TO them.
-        /// Other users will see these requests and can manually accept/decline.
-        /// Runs synchronously to ensure requests are created before API response.
-        /// </summary>
-        /// <param name="userId">User who just liked the movie</param>
-        /// <param name="tmdbId">Movie ID that was liked</param>
-        /// <param name="ct">Cancellation token</param>
-        Task CreateAutoMatchRequestsAsync(string userId, int tmdbId, CancellationToken ct);
-
-        /// <summary>
         /// Decline a match request from another user.
         /// Removes the incoming match request and optionally notifies the original requestor.
         /// </summary>
@@ -47,5 +36,25 @@ namespace Infrastructure.Services.Matches
         /// <param name="tmdbId">Movie ID associated with the request</param>
         /// <param name="ct">Cancellation token</param>
         Task DeclineMatchAsync(string declinerUserId, string requestorUserId, int tmdbId, CancellationToken ct);
+
+        /// <summary>
+        /// Get all active matches for a user (users they have chat rooms with).
+        /// Includes last message preview, unread count, and shared movies.
+        /// Used for "Active Matches" or "Chats" page.
+        /// </summary>
+        /// <param name="userId">Current user's ID</param>
+        /// <param name="ct">Cancellation token</param>
+        /// <returns>List of active matches with chat preview data</returns>
+        Task<IReadOnlyList<ActiveMatchDto>> GetActiveMatchesAsync(string userId, CancellationToken ct);
+
+        /// <summary>
+        /// Get the current match status between current user and a specific target user.
+        /// Useful for profile pages and quick status checks without loading full candidates list.
+        /// </summary>
+        /// <param name="userId">Current user's ID</param>
+        /// <param name="targetUserId">Target user's ID to check status with</param>
+        /// <param name="ct">Cancellation token</param>
+        /// <returns>Match status details including can/cannot actions</returns>
+        Task<MatchStatusDto> GetMatchStatusAsync(string userId, string targetUserId, CancellationToken ct);
     }
 }

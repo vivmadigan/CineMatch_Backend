@@ -172,5 +172,92 @@ namespace Presentation.Controllers
 
             return NoContent();
         }
+
+        /// <summary>
+        /// Get all active matches for the current user.
+        /// Returns users you've matched with (have chat rooms) including last message preview.
+        /// </summary>
+        /// <param name="matches">Match service (injected)</param>
+        /// <param name="ct">Cancellation token</param>
+        /// <remarks>
+        /// Example response:
+        /// 
+        ///     [
+        ///       {
+        ///     "userId": "abc-123",
+        ///      "displayName": "Alex",
+        ///    "roomId": "room-456",
+        ///    "matchedAt": "2025-01-31T10:00:00Z",
+        ///   "lastMessageAt": "2025-01-31T12:30:00Z",
+        /// "lastMessage": "Hey! Want to watch Inception tonight?",
+        ///         "unreadCount": 2,
+        ///  "sharedMovies": [...]
+        ///       }
+        ///     ]
+        /// </remarks>
+        /// <response code="200">List of active matches</response>
+        /// <response code="401">User not authenticated</response>
+        [HttpGet("active")]
+        [ProducesResponseType(typeof(IEnumerable<ActiveMatchDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetActiveMatches(
+            [FromServices] IMatchService matches,
+            CancellationToken ct = default)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var activeMatches = await matches.GetActiveMatchesAsync(userId, ct);
+            return Ok(activeMatches);
+        }
+
+        /// <summary>
+        /// Get the current match status with a specific user.
+        /// Useful for profile pages and quick status checks.
+        /// </summary>
+        /// <param name="matches">Match service (injected)</param>
+        /// <param name="targetUserId">User ID to check status with</param>
+        /// <param name="ct">Cancellation token</param>
+        /// <remarks>
+        /// Example response:
+        /// 
+        ///     {
+        ///       "status": "pending_sent",
+        ///       "canMatch": false,
+        ///       "canDecline": false,
+        ///       "requestSentAt": "2025-01-31T10:00:00Z",
+        ///       "roomId": null,
+        ///       "sharedMovies": [...]
+        ///     }
+        /// </remarks>
+        /// <response code="200">Match status details</response>
+        /// <response code="400">Invalid targetUserId</response>
+        /// <response code="401">User not authenticated</response>
+        [HttpGet("status/{targetUserId}")]
+        [ProducesResponseType(typeof(MatchStatusDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetMatchStatus(
+            [FromServices] IMatchService matches,
+            string targetUserId,
+            CancellationToken ct = default)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            // Validate targetUserId
+            if (string.IsNullOrWhiteSpace(targetUserId))
+                return BadRequest(new { error = "TargetUserId is required" });
+
+            if (!Guid.TryParse(targetUserId, out var targetGuid) || targetGuid == Guid.Empty)
+                return BadRequest(new { error = "TargetUserId must be a valid non-empty GUID" });
+
+            // Prevent checking status with self
+            if (userId == targetUserId)
+                return BadRequest(new { error = "Cannot check match status with yourself" });
+
+            var status = await matches.GetMatchStatusAsync(userId, targetUserId, ct);
+            return Ok(status);
+        }
     }
 }
