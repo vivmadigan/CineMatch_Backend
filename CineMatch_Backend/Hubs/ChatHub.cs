@@ -55,7 +55,7 @@ namespace Presentation.Hubs
 
         /// <summary>
         /// Send a real-time match notification to a specific user.
-        /// Called by MatchService when a potential match is created.
+        /// Called by MatchService when a mutual match is detected.
         /// </summary>
         /// <param name="hubContext">Hub context for sending messages</param>
         /// <param name="targetUserId">User to notify</param>
@@ -66,8 +66,9 @@ namespace Presentation.Hubs
             {
                 try
                 {
-                    await hubContext.Clients.Client(connectionId).SendAsync("NewMatch", matchData);
-                    Console.WriteLine($"[ChatHub] ? Sent NewMatch notification to user {targetUserId}");
+                    // Send "mutualMatch" event (frontend listens for this)
+                    await hubContext.Clients.Client(connectionId).SendAsync("mutualMatch", matchData);
+                    Console.WriteLine($"[ChatHub] ?? Sent mutualMatch notification to user {targetUserId}");
                 }
                 catch (Exception ex)
                 {
@@ -76,7 +77,7 @@ namespace Presentation.Hubs
             }
             else
             {
-                Console.WriteLine($"[ChatHub] ?? User {targetUserId} not connected, cannot send notification");
+                Console.WriteLine($"[ChatHub] ??  User {targetUserId} not connected, cannot send notification");
             }
         }
 

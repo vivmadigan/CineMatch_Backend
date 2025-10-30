@@ -1,5 +1,7 @@
 using Infrastructure.Models.Chat;
 using Infrastructure.Services.Chat;
+using Infrastructure.Data.Context;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +18,13 @@ namespace Presentation.Controllers
     [Produces("application/json")]
     public class ChatsController : ControllerBase
     {
+        private readonly ApplicationDbContext _db;
+
+        public ChatsController(ApplicationDbContext db)
+        {
+            _db = db;
+        }
+
         /// <summary>
         /// List all chat rooms for the current user.
         /// </summary>
@@ -48,6 +57,72 @@ namespace Presentation.Controllers
 
             var rooms = await chatService.ListMyRoomsAsync(userId, ct);
             return Ok(rooms);
+        }
+
+        /// <summary>
+        /// Get metadata for a specific chat room (other user info, shared movie context).
+        /// </summary>
+        /// <param name="chatService">Chat service (injected)</param>
+        /// <param name="roomId">Chat room ID</param>
+        /// <param name="ct">Cancellation token</param>
+        /// <response code="200">Room metadata with other user info</response>
+        /// <response code="401">User not authenticated</response>
+        /// <response code="403">User not a member of this room</response>
+        /// <response code="404">Room not found</response>
+        [HttpGet("{roomId:guid}")]
+        [ProducesResponseType(typeof(ChatRoomListItemDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetRoomMetadata(
+            [FromServices] IChatService chatService,
+            Guid roomId,
+            CancellationToken ct = default)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            try
+            {
+                // Verify membership
+                var isMember = await _db.ChatMemberships
+         .AnyAsync(m => m.RoomId == roomId && m.UserId == userId, ct);
+
+                if (!isMember)
+                    return StatusCode(403, new { error = "Not a member of this room" });
+
+                // Get other user info
+                var otherMember = await _db.ChatMemberships
+         .AsNoTracking()
+        .Where(m => m.RoomId == roomId && m.UserId != userId)
+          .Select(m => new { m.UserId, DisplayName = m.User != null ? m.User.DisplayName : "Unknown" })
+        .FirstOrDefaultAsync(ct);
+
+                if (otherMember == null)
+                    return NotFound(new { error = "Room not found" });
+
+                // Get last message
+                var lastMsg = await _db.ChatMessages
+ .AsNoTracking()
+  .Where(msg => msg.RoomId == roomId)
+   .OrderByDescending(msg => msg.SentAt)
+        .Select(msg => new { msg.Text, msg.SentAt })
+  .FirstOrDefaultAsync(ct);
+
+                return Ok(new ChatRoomListItemDto
+                {
+                    RoomId = roomId,
+                    OtherUserId = otherMember.UserId,
+                    OtherDisplayName = otherMember.DisplayName,
+                    TmdbId = null, // TODO: store movie context in ChatRoom if needed
+                    LastText = lastMsg?.Text,
+                    LastAt = lastMsg?.SentAt
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         /// <summary>
