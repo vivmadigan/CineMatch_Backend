@@ -203,52 +203,35 @@ namespace Presentation.Controllers
         /// <summary>
         /// Like (or re-like) a movie; idempotent upsert.
         /// Stores a snapshot (title, poster, year) for quick display without hitting TMDB.
-        /// Automatically creates match requests with users who also liked this movie.
+        /// NO automatic match requests - users must manually click "Match" button.
         /// </summary>
         /// <param name="tmdbId">TMDB movie ID (e.g., 27205 for "The Shawshank Redemption")</param>
         /// <param name="body">Optional movie snapshot: title, poster path, and release year</param>
         /// <param name="likes">User likes service (injected)</param>
-        /// <param name="matchService">Match service for auto-match creation (injected)</param>
         /// <param name="ct">Cancellation token</param>
-        [HttpPost("{tmdbId:int}/like")]
+   [HttpPost("{tmdbId:int}/like")]
      [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<IActionResult> Like(
        int tmdbId,
      [FromBody] LikeMovieRequestDto body,
-         [FromServices] IUserLikesService likes,
- [FromServices] Infrastructure.Services.Matches.IMatchService matchService,
+     [FromServices] IUserLikesService likes,
           CancellationToken ct)
   {
        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            Console.WriteLine($"\n[MoviesController] ════════════════════════════════════════════════════════");
+ Console.WriteLine($"\n[MoviesController] ════════════════════════════════════════════════════════");
       Console.WriteLine($"[MoviesController] 💚 User {userId} liking movie {tmdbId}");
-            Console.WriteLine($"[MoviesController] 🎬 Movie: {body.Title} ({body.ReleaseYear})");
-         Console.WriteLine($"[MoviesController] ════════════════════════════════════════════════════════");
+        Console.WriteLine($"[MoviesController] 🎬 Movie: {body.Title} ({body.ReleaseYear})");
+     Console.WriteLine($"[MoviesController] ════════════════════════════════════════════════════════");
 
    // Save the like
             await likes.UpsertLikeAsync(userId, tmdbId, body.Title, body.PosterPath, body.ReleaseYear, ct);
       Console.WriteLine($"[MoviesController] ✅ Like saved to database");
-
-    // Create match requests
-      try
-         {
-           Console.WriteLine($"[MoviesController] 🔄 Calling CreateAutoMatchRequestsAsync...");
-         await matchService.CreateAutoMatchRequestsAsync(userId, tmdbId, ct);
-  Console.WriteLine($"[MoviesController] ✅ CreateAutoMatchRequestsAsync completed successfully");
-            }
-    catch (Exception ex)
-     {
-     Console.WriteLine($"[MoviesController] ❌ ERROR in CreateAutoMatchRequestsAsync:");
-     Console.WriteLine($"[MoviesController]    Message: {ex.Message}");
-        Console.WriteLine($"[MoviesController]    Type: {ex.GetType().Name}");
-      Console.WriteLine($"[MoviesController] Stack Trace:\n{ex.StackTrace}");
-       // Don't fail the like if matching fails
-            }
-
-  Console.WriteLine($"[MoviesController] ════════════════════════════════════════════════════════\n");
-    return NoContent();
+       Console.WriteLine($"[MoviesController] ℹ️  NO automatic match requests - user must manually click 'Match' button");
+       Console.WriteLine($"[MoviesController] ════════════════════════════════════════════════════════\n");
+    
+       return NoContent();
         }
         /// <summary>
         /// Remove a like (unlike a movie); idempotent.
