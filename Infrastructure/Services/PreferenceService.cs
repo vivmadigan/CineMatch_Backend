@@ -53,18 +53,40 @@ namespace Infrastructure.Services
             if (!AllowedLengthKeys.Contains(key))
                 throw new ArgumentOutOfRangeException(nameof(dto.Length), "length must be short | medium | long");
 
-            var pref = await _db.UserPreferences.FirstOrDefaultAsync(p => p.UserId == userId, ct);
-            if (pref is null)
+            // 🔒 RACE CONDITION PROTECTION: Retry on unique constraint violation
+            const int maxRetries = 3;
+            for (int attempt = 0; attempt < maxRetries; attempt++)
             {
-                pref = new UserPreference { UserId = userId };
-                _db.UserPreferences.Add(pref);
+                try
+                {
+                    var pref = await _db.UserPreferences.FirstOrDefaultAsync(p => p.UserId == userId, ct);
+                    if (pref is null)
+                    {
+                        pref = new UserPreference { UserId = userId };
+                        _db.UserPreferences.Add(pref);
+                    }
+
+                    pref.GenreIds = dto.GenreIds.Distinct().ToList(); // keep it tidy
+                    pref.LengthKey = key;
+                    pref.UpdatedAt = DateTime.UtcNow;
+
+                    await _db.SaveChangesAsync(ct);
+                    return; // Success - exit
+                }
+                catch (DbUpdateException ex) when (
+                    ex.InnerException?.Message.Contains("UNIQUE constraint failed") == true &&
+                    attempt < maxRetries - 1)
+                {
+                    // Race condition detected: Another request created preferences
+                    // Detach the entity and retry with updated data
+                    _db.ChangeTracker.Clear();
+                    Console.WriteLine($"[PreferenceService] ℹ️  Unique constraint violation on attempt {attempt + 1}, retrying...");
+                    await Task.Delay(50 * (attempt + 1), ct); // Exponential backoff: 50ms, 100ms, 150ms
+                }
             }
 
-            pref.GenreIds = dto.GenreIds.Distinct().ToList(); // keep it tidy
-            pref.LengthKey = key;
-            pref.UpdatedAt = DateTime.UtcNow;
-
-            await _db.SaveChangesAsync(ct);
+            // If we get here after all retries, throw the original exception
+            throw new InvalidOperationException($"Failed to save preferences after {maxRetries} attempts due to concurrent modifications");
         }
 
         public async Task DeleteAsync(string userId, CancellationToken ct)

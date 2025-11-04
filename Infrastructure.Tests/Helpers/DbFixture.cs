@@ -82,4 +82,47 @@ public static class DbFixture
         }
         return users;
     }
+
+    /// <summary>
+    /// Create a test chat room with the given user as a member.
+    /// </summary>
+    public static async Task<ChatRoom> CreateTestRoomAsync(
+    ApplicationDbContext db,
+        string userId,
+      string? otherUserId = null)
+    {
+        // Create room
+        var room = new ChatRoom
+ {
+    Id = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow
+        };
+        db.ChatRooms.Add(room);
+
+     // Add primary user membership
+        var membership1 = new ChatMembership
+        {
+       RoomId = room.Id,
+    UserId = userId,
+         IsActive = true,
+    JoinedAt = DateTime.UtcNow
+    };
+   db.ChatMemberships.Add(membership1);
+
+        // Add other user membership if specified
+  if (!string.IsNullOrEmpty(otherUserId))
+        {
+   var membership2 = new ChatMembership
+  {
+                RoomId = room.Id,
+       UserId = otherUserId,
+    IsActive = true,
+     JoinedAt = DateTime.UtcNow
+        };
+    db.ChatMemberships.Add(membership2);
+    }
+
+   await db.SaveChangesAsync();
+        return room;
+    }
 }
