@@ -3,10 +3,10 @@
        Coverlet Code Coverage Configuration
        ========================================
        This file is automatically imported by all projects in the solution.
- It centralizes coverage settings to avoid duplication.
+       It centralizes coverage settings to avoid duplication.
        
        Applies to: All test projects (*.Tests.csproj)
-   ======================================== -->
+       ======================================== -->
 
   <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
     
@@ -16,7 +16,7 @@
     <!-- Output Formats -->
     <CoverletOutputFormat>cobertura,json</CoverletOutputFormat>
     
- <!-- Output Directory (relative to each test project) -->
+    <!-- Output Directory (relative to each test project) -->
     <CoverletOutput>$(MSBuildProjectDirectory)/TestResults/coverage/</CoverletOutput>
     
     <!-- Coverage Thresholds -->
@@ -30,7 +30,7 @@
     <Exclude>
       <!-- EF Core Migrations (generated code) - ALL variations -->
       [Infrastructure]Infrastructure.Migrations*,
-  [Infrastructure]Infrastructure.Data.Migrations*,
+      [Infrastructure]Infrastructure.Data.Migrations*,
       <!-- DTOs (no business logic) -->
       [Infrastructure]*Dto,
       [Infrastructure]*Request,
@@ -39,7 +39,7 @@
       [Infrastructure]Infrastructure.Likes*Dto,
       <!-- Entities (POCOs) -->
       [Infrastructure]Infrastructure.Data.Entities*,
-<!-- DbContext -->
+      <!-- DbContext -->
       [Infrastructure]Infrastructure.Data.Context*,
       <!-- Program/Startup -->
       [Presentation]Presentation.Program,
@@ -52,8 +52,8 @@
     
     <!-- Include Filters (explicitly include what we DO want) -->
     <Include>
- [Infrastructure]*,
-    [Presentation]*
+      [Infrastructure]*,
+      [Presentation]*
     </Include>
     
     <!-- Additional Settings -->
@@ -61,17 +61,24 @@
       Obsolete,
       GeneratedCode,
       CompilerGenerated,
-       ExcludeFromCodeCoverage
+      ExcludeFromCodeCoverage
     </ExcludeByAttribute>
- 
+    
     <!-- Exclude files by path pattern (MOST RELIABLE for Migrations) -->
+    <!-- Updated patterns to work correctly with Coverlet -->
     <ExcludeByFile>
-   **/Migrations/*.cs,
+      <!-- Migrations - multiple patterns for reliability -->
       **/Migrations/**/*.cs,
-      **/obj/**,
-  **/bin/**,
-      **/*Designer.cs,
-**/*.g.cs,
+      **/Infrastructure/Migrations/*.cs,
+      **/*Migration*.cs,
+      **/ApplicationDbContextModelSnapshot.cs,
+      <!-- Build artifacts -->
+      **/obj/**/*.cs,
+      **/bin/**/*.cs,
+      <!-- Designer files -->
+      **/*.Designer.cs,
+      **/*.designer.cs,
+      **/*.g.cs,
       **/*.g.i.cs
     </ExcludeByFile>
 

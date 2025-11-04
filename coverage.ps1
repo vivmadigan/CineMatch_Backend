@@ -17,7 +17,7 @@ Write-Host " CineMatch Code Coverage" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 1. Clean previous coverage results
+# 1. Clean previous coverage results (INCLUDING old .xml files in project roots)
 Write-Host "?? Cleaning previous coverage results..." -ForegroundColor Yellow
 if (Test-Path "./TestResults") {
     Remove-Item -Recurse -Force "./TestResults"
@@ -25,35 +25,35 @@ if (Test-Path "./TestResults") {
 if (Test-Path "./coverage-report") {
     Remove-Item -Recurse -Force "./coverage-report"
 }
+# Clean old coverage files from project roots (these interfere with new results)
+Get-ChildItem -Recurse -Filter "coverage.cobertura.xml" | Where-Object { $_.Directory.Name -notlike "TestResults*" } | Remove-Item -Force
 
-# 2. Restore packages (ensures coverlet.msbuild is available)
+# 2. Restore packages (ensures coverlet.collector is available)
 Write-Host "?? Restoring NuGet packages..." -ForegroundColor Yellow
 dotnet restore
 
-# 3. Run tests with coverage
+# 3. Run tests with coverage using runsettings
 Write-Host ""
 Write-Host "?? Running tests with coverage collection..." -ForegroundColor Yellow
-Write-Host "   Excluding: Migrations, DTOs, Entities, Models" -ForegroundColor Gray
+Write-Host "   Excluding: Migrations, DTOs, Entities, Models (via coverlet.runsettings)" -ForegroundColor Gray
 
 # Build test command with proper escaping
 $testArgs = @(
     "test"
-    "/p:CollectCoverage=true"
-    "/p:CoverletOutputFormat=cobertura"
+    "--settings", "coverlet.runsettings"
+    "--collect:XPlat Code Coverage"
     '--no-restore'
     '--verbosity', 'minimal'
 )
 
 if ($Threshold -gt 0) {
-    Write-Host "Threshold: $Threshold% (build will fail if below)" -ForegroundColor Magenta
-    $testArgs += "/p:Threshold=$Threshold"
-    $testArgs += "/p:ThresholdType=line"
-    $testArgs += "/p:ThresholdStat=total"
+    Write-Host "   Threshold: $Threshold% (build will fail if below)" -ForegroundColor Magenta
+    # Note: Thresholds are only enforced via coverlet.msbuild, not coverlet.collector
 } else {
     Write-Host "   Threshold: None (report only)" -ForegroundColor Green
 }
 
-# Run dotnet test (exclusions from Directory.Build.props will be used)
+# Run dotnet test with run settings
 & dotnet @testArgs
 
 $testExitCode = $LASTEXITCODE
@@ -65,14 +65,14 @@ if ($testExitCode -ne 0) {
     exit $testExitCode
 }
 
-# 4. Find coverage files
+# 4. Find coverage files (ONLY from TestResults folders)
 Write-Host ""
 Write-Host "?? Locating coverage files..." -ForegroundColor Yellow
-$coverageFiles = Get-ChildItem -Recurse -Filter "coverage.cobertura.xml" | Select-Object -ExpandProperty FullName
+$coverageFiles = Get-ChildItem -Path . -Recurse -Filter "coverage.cobertura.xml" | Where-Object { $_.FullName -like "*TestResults*" } | Select-Object -ExpandProperty FullName
 
 if ($coverageFiles.Count -eq 0) {
     Write-Host "? No coverage files found!" -ForegroundColor Red
-    Write-Host "   Expected: **/TestResults/coverage/coverage.cobertura.xml" -ForegroundColor Yellow
+    Write-Host "   Expected: **/TestResults/**/coverage.cobertura.xml" -ForegroundColor Yellow
     exit 1
 }
 
@@ -93,7 +93,7 @@ if (-not $reportGenPath) {
     Write-Host "   ReportGenerator is already installed" -ForegroundColor Green
 }
 
-# 6. Generate HTML report using FULL PATH
+# 6. Generate HTML report using FULL PATH with class filters
 Write-Host ""
 Write-Host "?? Generating HTML coverage report..." -ForegroundColor Yellow
 
@@ -105,12 +105,16 @@ $reportGenExe = "$userProfile\.dotnet\tools\reportgenerator.exe"
 
 Write-Host "   Using ReportGenerator at: $reportGenExe" -ForegroundColor Gray
 
+# ReportGenerator class filters to exclude migrations and generated code
+$classFilters = "-Infrastructure.Migrations.*;-*.Designer;-*ModelSnapshot"
+
 if (Test-Path $reportGenExe) {
     & $reportGenExe `
-      "-reports:$reportsArg" `
+        "-reports:$reportsArg" `
         "-targetdir:./coverage-report" `
-   "-reporttypes:Html;TextSummary" `
-        "-title:CineMatch Code Coverage"
+        "-reporttypes:Html;TextSummary" `
+        "-title:CineMatch Code Coverage" `
+        "-classfilters:$classFilters"
 } else {
     Write-Host "   ??  ReportGenerator exe not found at expected location" -ForegroundColor Yellow
     Write-Host "   Trying dotnet command (requires PATH refresh)..." -ForegroundColor Yellow
@@ -121,8 +125,9 @@ if (Test-Path $reportGenExe) {
     dotnet reportgenerator `
         "-reports:$reportsArg" `
         "-targetdir:./coverage-report" `
-     "-reporttypes:Html;TextSummary" `
-      "-title:CineMatch Code Coverage"
+        "-reporttypes:Html;TextSummary" `
+        "-title:CineMatch Code Coverage" `
+        "-classfilters:$classFilters"
 }
 
 if ($LASTEXITCODE -ne 0) {

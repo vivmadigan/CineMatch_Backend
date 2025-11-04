@@ -1,85 +1,40 @@
 Summary - CineMatch Code Coverage
-  Generated on: 2025-11-04 - 15:04:25
-  Coverage date: 2025-11-03 - 17:24:45 - 2025-11-04 - 15:04:24
-  Parser: MultiReport (3x Cobertura)
+  Generated on: 2025-11-04 - 16:21:32
+  Coverage date: 2025-11-04 - 16:19:24 - 2025-11-04 - 16:21:31
+  Parser: MultiReport (2x Cobertura)
   Assemblies: 2
-  Classes: 61
-  Files: 68
-  Line coverage: 31.4%
-  Covered lines: 1717
-  Uncovered lines: 3743
-  Coverable lines: 5460
-  Total lines: 7862
-  Branch coverage: 71.4% (336 of 470)
-  Covered branches: 336
-  Total branches: 470
-  Method coverage: 73.2% (208 of 284)
-  Full method coverage: 65.8% (187 of 284)
-  Covered methods: 208
-  Fully covered methods: 187
-  Total methods: 284
+  Classes: 16
+  Files: 16
+  Line coverage: 96.5%
+  Covered lines: 284
+  Uncovered lines: 10
+  Coverable lines: 294
+  Total lines: 2747
+  Branch coverage: 75% (21 of 28)
+  Covered branches: 21
+  Total branches: 28
+  Method coverage: 93.7% (30 of 32)
+  Full method coverage: 90.6% (29 of 32)
+  Covered methods: 30
+  Fully covered methods: 29
+  Total methods: 32
 
-Infrastructure                                                      25.7%
-  Infrastructure.Data.Context.ApplicationDbContext                   100%
-  Infrastructure.Data.Entities.ChatMembership                       71.4%
-  Infrastructure.Data.Entities.ChatMessage                          71.4%
-  Infrastructure.Data.Entities.ChatRoom                              100%
-  Infrastructure.Data.Entities.MatchRequest                         71.4%
-  Infrastructure.Data.Entities.UserEntity                            100%
-  Infrastructure.Data.Entities.UserMovieLike                        87.5%
-  Infrastructure.Data.Entities.UserPreference                         80%
-  Infrastructure.External.TmdbClient                                93.6%
-  Infrastructure.External.TmdbDiscoverResponse                       100%
-  Infrastructure.External.TmdbGenre                                  100%
-  Infrastructure.External.TmdbGenreResponse                          100%
-  Infrastructure.External.TmdbMovie                                  100%
-  Infrastructure.Likes.LikeMovieRequestDto                           100%
-  Infrastructure.Likes.MovieLikeDto                                  100%
-  Infrastructure.Migrations.AddChatMessages                            0%
-  Infrastructure.Migrations.AddMatchHandshake                          0%
-  Infrastructure.Migrations.AddUniqueConstraintsForRaceConditions      0%
-  Infrastructure.Migrations.AddUniqueIndexOnDisplayName                0%
-  Infrastructure.Migrations.AddUserMovieLike                           0%
-  Infrastructure.Migrations.AddUserPreference                          0%
-  Infrastructure.Migrations.ApplicationDbContextModelSnapshot          0%
-  Infrastructure.Migrations.InitialCreate                              0%
-  Infrastructure.Models.AuthResponseDto                              100%
-  Infrastructure.Models.Chat.ChatMessageDto                          100%
-  Infrastructure.Models.Chat.ChatRoomListItemDto                     100%
-  Infrastructure.Models.Chat.ConversationDto                           0%
-  Infrastructure.Models.Chat.MessageDto                                0%
-  Infrastructure.Models.Chat.RoomMetadataDto                           0%
-  Infrastructure.Models.Chat.SendMessageRequest                        0%
-  Infrastructure.Models.Matches.ActiveMatchDto                       100%
-  Infrastructure.Models.Matches.CandidateDto                         100%
-  Infrastructure.Models.Matches.MatchResultDto                       100%
-  Infrastructure.Models.Matches.MatchStatusDto                       100%
-  Infrastructure.Models.Matches.RequestMatchDto                      100%
-  Infrastructure.Models.Matches.SharedMovieDto                       100%
-  Infrastructure.Models.MovieSummaryDto                                0%
-  Infrastructure.Models.MyInformationDto                               0%
-  Infrastructure.Models.SignInDto                                    100%
-  Infrastructure.Models.SignUpDto                                    100%
-  Infrastructure.Options.GenreOptionsDto                               0%
-  Infrastructure.Options.LengthOptionDto                             100%
-  Infrastructure.Options.MovieOptionsDto                             100%
-  Infrastructure.Options.TmdbOptions                                 100%
-  Infrastructure.Preferences.GetPreferencesDto                       100%
-  Infrastructure.Preferences.SavePreferenceDto                       100%
-  Infrastructure.Services.Chat.ChatService                           100%
-  Infrastructure.Services.JwtTokenService                            100%
-  Infrastructure.Services.Matches.MatchService                      97.2%
-  Infrastructure.Services.PreferenceService                         69.4%
-  Infrastructure.Services.UserLikesService                            82%
+Infrastructure                                        100%
+  Infrastructure.Data.Context.ApplicationDbContext    100%
+  Infrastructure.External.TmdbClient                  100%
+  Infrastructure.Services.Chat.ChatService            100%
+  Infrastructure.Services.JwtTokenService             100%
+  Infrastructure.Services.Matches.MatchService        100%
+  Infrastructure.Services.PreferenceService           100%
+  Infrastructure.Services.UserLikesService            100%
 
-Presentation                                                        76.3%
-  Presentation.Controllers.ChatsController                          46.8%
-  Presentation.Controllers.MatchesController                        73.7%
-  Presentation.Controllers.MoviesController                         76.4%
-  Presentation.Controllers.MyInformationController                     0%
-  Presentation.Controllers.PreferencesController                    62.9%
-  Presentation.Controllers.SignInController                          100%
-  Presentation.Controllers.SignUpController                         88.8%
-  Presentation.Hubs.ChatHub                                         76.3%
-  Presentation.Hubs.SignalRNotificationService                       100%
-  Program                                                            100%
+Presentation                                         94.5%
+  Presentation.Controllers.ChatsController            100%
+  Presentation.Controllers.MoviesController            80%
+  Presentation.Controllers.MyInformationController    100%
+  Presentation.Controllers.PreferencesController      100%
+  Presentation.Controllers.SignInController           100%
+  Presentation.Controllers.SignUpController           100%
+  Presentation.Hubs.ChatHub                           100%
+  Presentation.Hubs.SignalRNotificationService        100%
+  Program                                            96.8%
