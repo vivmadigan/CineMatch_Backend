@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <!-- Exclude migrations and generated files -->
+          <ExcludeByFile>
+            <!-- Migrations -->
+            **\Migrations\**\*.cs,
+            **\*Migration*.cs,
+            **\ApplicationDbContextModelSnapshot.cs,
+            <!-- Build artifacts -->
+            **\obj\**\*.cs,
+            **\bin\**\*.cs,
+            <!-- Designer files -->
+            **\*.Designer.cs,
+            **\*.designer.cs,
+            **\*.g.cs,
+            **\*.g.i.cs
+          </ExcludeByFile>
+          <ExcludeByAttribute>
+            Obsolete,
+            GeneratedCodeAttribute,
+            CompilerGeneratedAttribute,
+            ExcludeFromCodeCoverageAttribute,
+            System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute
+          </ExcludeByAttribute>
+          <Include>
+            [Infrastructure]*,
+            [Presentation]*
+          </Include>
+          <Exclude>
+            [Infrastructure]Infrastructure.Migrations.*,
+            [Infrastructure]Infrastructure.Data.Migrations.*
+          </Exclude>
+          <Format>cobertura</Format>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

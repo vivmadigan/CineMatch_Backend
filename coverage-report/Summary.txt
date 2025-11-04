@@ -1,0 +1,40 @@
+Summary - CineMatch Code Coverage
+  Generated on: 2025-11-04 - 16:21:32
+  Coverage date: 2025-11-04 - 16:19:24 - 2025-11-04 - 16:21:31
+  Parser: MultiReport (2x Cobertura)
+  Assemblies: 2
+  Classes: 16
+  Files: 16
+  Line coverage: 96.5%
+  Covered lines: 284
+  Uncovered lines: 10
+  Coverable lines: 294
+  Total lines: 2747
+  Branch coverage: 75% (21 of 28)
+  Covered branches: 21
+  Total branches: 28
+  Method coverage: 93.7% (30 of 32)
+  Full method coverage: 90.6% (29 of 32)
+  Covered methods: 30
+  Fully covered methods: 29
+  Total methods: 32
+
+Infrastructure                                        100%
+  Infrastructure.Data.Context.ApplicationDbContext    100%
+  Infrastructure.External.TmdbClient                  100%
+  Infrastructure.Services.Chat.ChatService            100%
+  Infrastructure.Services.JwtTokenService             100%
+  Infrastructure.Services.Matches.MatchService        100%
+  Infrastructure.Services.PreferenceService           100%
+  Infrastructure.Services.UserLikesService            100%
+
+Presentation                                         94.5%
+  Presentation.Controllers.ChatsController            100%
+  Presentation.Controllers.MoviesController            80%
+  Presentation.Controllers.MyInformationController    100%
+  Presentation.Controllers.PreferencesController      100%
+  Presentation.Controllers.SignInController           100%
+  Presentation.Controllers.SignUpController           100%
+  Presentation.Hubs.ChatHub                           100%
+  Presentation.Hubs.SignalRNotificationService        100%
+  Program                                            96.8%

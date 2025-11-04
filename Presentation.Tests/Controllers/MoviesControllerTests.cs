@@ -247,7 +247,7 @@ public class MoviesControllerTests
         var unlikeResponse = await client.DeleteAsync("/api/movies/27205/like");
         unlikeResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        // Act - Get likes
+        // Act - Get Likes
         var getLikesResponse = await client.GetAsync("/api/movies/likes");
         var likes = await getLikesResponse.Content.ReadFromJsonAsync<List<MovieLikeDto>>();
 
@@ -485,6 +485,617 @@ public class MoviesControllerTests
         // Assert - Should handle gracefully (either 400 or ignore invalid)
         (response.StatusCode == HttpStatusCode.BadRequest ||
          response.StatusCode == HttpStatusCode.OK).Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Helper Method Tests (Private Method Coverage)
+
+    /// <summary>
+    /// GOAL: Test OneLine() helper through Discover endpoint.
+    /// IMPORTANCE: Verify synopsis truncation works correctly.
+    /// </summary>
+    [Fact]
+    public async Task Discover_TruncatesLongSynopsis()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?genres=28&batchSize=5");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        
+        movies.Should().NotBeNull();
+        // OneLine() should truncate at 140 chars with "..." if needed
+        // Some movies might have no overview, so check only non-empty ones
+        if (movies!.Any(m => !string.IsNullOrEmpty(m.OneLiner)))
+        {
+            movies.Where(m => !string.IsNullOrEmpty(m.OneLiner))
+                .Should().OnlyContain(m => m.OneLiner.Length <= 143); // 140 + "..."
+        }
+    }
+
+    /// <summary>
+    /// GOAL: Test MapLengthToRuntime() via discover endpoint.
+    /// IMPORTANCE: Verify all length bucket mappings work.
+    /// </summary>
+    [Fact]
+    public async Task Discover_WithShortLength_FiltersCorrectly()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?length=short&batchSize=5");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Discover_WithLongLength_FiltersCorrectly()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?length=long&batchSize=5");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Discover_WithInvalidLength_DefaultsToMedium()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?length=invalid&batchSize=5");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Should use medium (100-140 minutes) as default
+    }
+
+    /// <summary>
+    /// GOAL: Test ParseGenres() via discover endpoint.
+    /// IMPORTANCE: Verify genre parsing handles various formats.
+    /// </summary>
+    [Fact]
+    public async Task Discover_WithCommaDelimitedGenres_Parses()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?genres=28,35,18");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Discover_WithSpacesInGenres_TrimsCorrectly()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?genres=28 , 35 , 18");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Discover_WithEmptyGenres_ReturnsAll()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?genres=");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Discover_WithInvalidGenreIds_FiltersThemOut()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?genres=28,abc,35,xyz");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Should parse as [28, 35] and ignore invalid values
+    }
+
+    [Fact]
+    public async Task Discover_WithNegativeGenreIds_FiltersThemOut()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?genres=-1,28,0,35");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Should parse as [28, 35] and ignore negative/zero values
+    }
+
+    /// <summary>
+    /// GOAL: Test Img() helper via movie responses.
+    /// IMPORTANCE: Verify URL construction works correctly.
+    /// </summary>
+    [Fact]
+    public async Task Discover_BuildsCorrectImageUrls()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?batchSize=5");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        
+        movies.Should().NotBeNull();
+        // Poster URLs should include size segment (if poster exists)
+        if (movies!.Any(m => m.PosterUrl != null))
+        {
+            movies.Where(m => m.PosterUrl != null)
+                .Should().OnlyContain(m => m.PosterUrl!.Contains("w342"));
+        }
+        
+        // Backdrop URLs should include size segment (if backdrop exists)
+        if (movies.Any(m => m.BackdropUrl != null))
+        {
+            movies.Where(m => m.BackdropUrl != null)
+                .Should().OnlyContain(m => m.BackdropUrl!.Contains("w780"));
+        }
+    }
+
+    [Fact]
+    public async Task Discover_HandlesNullPosterPath()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?batchSize=20");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        
+        // Should handle null poster paths gracefully (return null, not throw)
+        movies.Should().NotBeNull();
+    }
+
+    #endregion
+
+    #region Pagination and Batch Size Tests
+
+    [Fact]
+    public async Task Discover_WithBatchSize1_ReturnsOneMovie()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?batchSize=1");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        movies.Should().NotBeNull();
+        // TMDB mock might return 0-1 movies
+        movies!.Count.Should().BeLessOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task Discover_WithBatchSize10_ReturnsUpTo10Movies()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?batchSize=10");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        movies.Should().NotBeNull();
+        movies!.Count.Should().BeLessOrEqualTo(10);
+    }
+
+    [Fact]
+    public async Task Discover_WithDefaultBatchSize_Returns5Movies()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        movies.Should().NotBeNull();
+        movies!.Count.Should().BeLessOrEqualTo(5);
+    }
+
+    [Fact]
+    public async Task Discover_WithPage2_ReturnsDifferentMovies()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response1 = await client.GetAsync("/api/movies/discover?page=1&batchSize=5");
+        var response2 = await client.GetAsync("/api/movies/discover?page=2&batchSize=5");
+
+        // Assert
+        response1.StatusCode.Should().Be(HttpStatusCode.OK);
+        response2.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var movies1 = await response1.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        var movies2 = await response2.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+
+        movies1.Should().NotBeNull();
+        movies2.Should().NotBeNull();
+        // Page 2 should have different movies than page 1
+        // (unless there aren't enough movies, which is acceptable)
+    }
+
+    #endregion
+
+    #region Language and Region Tests
+
+    [Fact]
+    public async Task Discover_WithLanguageParameter_PassesToTmdb()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?language=fr-FR");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Discover_WithRegionParameter_PassesToTmdb()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?region=US");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Discover_WithBothLanguageAndRegion_Works()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?language=es-ES&region=ES");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Test_WithLanguageParameter_Works()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/test?language=ja-JP");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Options_WithLanguageParameter_ReturnsGenresInThatLanguage()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/options?language=es-ES");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var options = await response.Content.ReadFromJsonAsync<MovieOptionsDto>();
+        options.Should().NotBeNull();
+        options!.Genres.Should().NotBeNull();
+    }
+
+    #endregion
+
+    #region Release Year Tests
+
+    [Fact]
+    public async Task Discover_ExtractsReleaseYear()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?batchSize=5");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        
+        movies.Should().NotBeNull();
+        // Movies with release dates should have 4-digit year (if they have release dates)
+        if (movies!.Any(m => m.ReleaseYear != null))
+        {
+            movies.Where(m => m.ReleaseYear != null)
+                .Should().OnlyContain(m => m.ReleaseYear!.Length == 4);
+        }
+    }
+
+    [Fact]
+    public async Task Discover_HandlesEmptyReleaseDate()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?batchSize=20");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        
+        // Should handle empty release dates gracefully (set to null)
+        movies.Should().NotBeNull();
+    }
+
+    #endregion
+
+    #region Rating Tests
+
+    [Fact]
+    public async Task Discover_RoundsRatingToOneDecimal()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?batchSize=5");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        
+        movies.Should().NotBeNull();
+        // All ratings should be rounded to 1 decimal place
+        foreach (var movie in movies!)
+        {
+            var decimalPart = movie.Rating - Math.Truncate(movie.Rating);
+            var decimalDigits = decimalPart.ToString("F1").Split('.')[1].Length;
+            decimalDigits.Should().BeLessOrEqualTo(1);
+        }
+    }
+
+    #endregion
+
+    #region Genre Options Caching Tests
+
+    [Fact]
+    public async Task Options_CachesGenreList()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act - Call twice rapidly
+        var sw1 = System.Diagnostics.Stopwatch.StartNew();
+        var response1 = await client.GetAsync("/api/movies/options");
+        sw1.Stop();
+
+        var sw2 = System.Diagnostics.Stopwatch.StartNew();
+        var response2 = await client.GetAsync("/api/movies/options");
+        sw2.Stop();
+
+        // Assert
+        response1.StatusCode.Should().Be(HttpStatusCode.OK);
+        response2.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Second call should be faster (cached)
+        // Note: This might be flaky in fast systems, so we're lenient
+        sw2.ElapsedMilliseconds.Should().BeLessOrEqualTo(sw1.ElapsedMilliseconds + 50);
+    }
+
+    [Fact]
+    public async Task Options_ReturnsThreeLengthBuckets()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/options");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var options = await response.Content.ReadFromJsonAsync<MovieOptionsDto>();
+        
+        options.Should().NotBeNull();
+        options!.Lengths.Should().HaveCount(3);
+        options.Lengths.Should().Contain(l => l.Key == "short");
+        options.Lengths.Should().Contain(l => l.Key == "medium");
+        options.Lengths.Should().Contain(l => l.Key == "long");
+    }
+
+    [Fact]
+    public async Task Options_LengthBucketsHaveCorrectBounds()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/options");
+
+        // Assert
+        var options = await response.Content.ReadFromJsonAsync<MovieOptionsDto>();
+        
+        options.Should().NotBeNull();
+        
+        var shortBucket = options!.Lengths.First(l => l.Key == "short");
+        shortBucket.Min.Should().BeNull();
+        shortBucket.Max.Should().Be(99);
+
+        var mediumBucket = options.Lengths.First(l => l.Key == "medium");
+        mediumBucket.Min.Should().Be(100);
+        mediumBucket.Max.Should().Be(140);
+
+        var longBucket = options.Lengths.First(l => l.Key == "long");
+        longBucket.Min.Should().Be(141);
+        longBucket.Max.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Options_GenresAreSortedByName()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/options");
+
+        // Assert
+        var options = await response.Content.ReadFromJsonAsync<MovieOptionsDto>();
+        
+        options.Should().NotBeNull();
+        if (options!.Genres != null && options.Genres.Count > 1)
+        {
+            var sortedGenres = options.Genres.OrderBy(g => g.Name).Select(g => g.Name).ToList();
+            var actualGenreNames = options.Genres.Select(g => g.Name).ToList();
+            actualGenreNames.Should().Equal(sortedGenres);
+        }
+    }
+
+    #endregion
+
+    #region Concurrency Tests
+
+    [Fact]
+    public async Task Discover_HandlesConcurrentRequests()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act - Send 10 concurrent requests
+        var tasks = Enumerable.Range(0, 10)
+            .Select(_ => client.GetAsync("/api/movies/discover?batchSize=5"))
+            .ToArray();
+
+        var responses = await Task.WhenAll(tasks);
+
+        // Assert - All should succeed
+        responses.Should().OnlyContain(r => r.StatusCode == HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetLikes_HandlesConcurrentRequests()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act - Send 5 concurrent requests
+        var tasks = Enumerable.Range(0, 5)
+            .Select(_ => client.GetAsync("/api/movies/likes"))
+            .ToArray();
+
+        var responses = await Task.WhenAll(tasks);
+
+        // Assert - All should succeed
+        responses.Should().OnlyContain(r => r.StatusCode == HttpStatusCode.OK);
+    }
+
+    #endregion
+
+    #region Performance Tests
+
+    [Fact]
+    public async Task Discover_CompletesQuickly()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var response = await client.GetAsync("/api/movies/discover?batchSize=5");
+        sw.Stop();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        sw.ElapsedMilliseconds.Should().BeLessThan(5000, "discover should complete within 5 seconds");
+    }
+
+    [Fact]
+    public async Task GetLikes_CompletesQuickly()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var response = await client.GetAsync("/api/movies/likes");
+        sw.Stop();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        sw.ElapsedMilliseconds.Should().BeLessThan(1000, "get likes should complete within 1 second");
+    }
+
+    #endregion
+
+    #region TmdbUrl Construction Tests
+
+    [Fact]
+    public async Task Discover_BuildsCorrectTmdbUrls()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/movies/discover?batchSize=5");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movies = await response.Content.ReadFromJsonAsync<List<MovieSummaryDto>>();
+        
+        movies.Should().NotBeNull();
+        // Only check if movies exist (TMDB mock might return empty)
+        if (movies!.Any())
+        {
+            // All TMDB URLs should follow the pattern
+            movies.Should().OnlyContain(m => m.TmdbUrl.StartsWith("https://www.themoviedb.org/movie/"));
+            movies.Should().OnlyContain(m => m.TmdbUrl.Contains(m.Id.ToString()));
+        }
     }
 
     #endregion

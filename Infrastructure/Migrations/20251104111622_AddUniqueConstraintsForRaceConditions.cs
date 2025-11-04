@@ -1,11 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Infrastructure.Migrations
 {
     /// <inheritdoc />
-  public partial class AddUniqueConstraintsForRaceConditions : Migration
+    [ExcludeFromCodeCoverage]
+    public partial class AddUniqueConstraintsForRaceConditions : Migration
     {
    /// <inheritdoc />
       protected override void Up(MigrationBuilder migrationBuilder)
