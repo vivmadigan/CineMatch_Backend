@@ -451,4 +451,310 @@ public class MatchesControllerTests
     }
 
     #endregion
+
+    #region DeclineMatch Tests (NEW - Addresses CRAP Score 156)
+
+    [Fact]
+    public async Task DeclineMatch_WithoutAuth_Returns401()
+    {
+        // Arrange
+        var client = _fixture.CreateClient();
+
+        var requestDto = new RequestMatchDto
+        {
+         TargetUserId = Guid.NewGuid().ToString(),
+          TmdbId = 27205
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/matches/decline", requestDto);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task DeclineMatch_WithValidRequest_Returns204()
+    {
+        // Arrange
+        var (client1, userId1, _) = await _fixture.CreateAuthenticatedClientAsync();
+        var (client2, userId2, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // User2 sends match request to User1
+        await client2.PostAsJsonAsync("/api/matches/request", new RequestMatchDto
+        {
+            TargetUserId = userId1,
+            TmdbId = 27205
+ });
+
+// Act - User1 declines User2's request
+     var declineResponse = await client1.PostAsJsonAsync("/api/matches/decline", new RequestMatchDto
+        {
+            TargetUserId = userId2, // The person who sent the request
+          TmdbId = 27205
+        });
+
+        // Assert
+        declineResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+ }
+
+    [Fact]
+    public async Task DeclineMatch_WithMissingTargetUserId_Returns400()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        var requestDto = new RequestMatchDto
+        {
+  TargetUserId = "", // Empty
+       TmdbId = 27205
+   };
+
+        // Act
+  var response = await client.PostAsJsonAsync("/api/matches/decline", requestDto);
+
+ // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+  [Fact]
+    public async Task DeclineMatch_WithInvalidGuid_Returns400()
+    {
+        // Arrange
+  var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+    var requestDto = new RequestMatchDto
+ {
+     TargetUserId = "not-a-guid",
+       TmdbId = 27205
+  };
+
+      // Act
+        var response = await client.PostAsJsonAsync("/api/matches/decline", requestDto);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+  }
+
+    [Fact]
+    public async Task DeclineMatch_WithEmptyGuid_Returns400()
+    {
+ // Arrange
+    var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+   var requestDto = new RequestMatchDto
+ {
+      TargetUserId = Guid.Empty.ToString(),
+            TmdbId = 27205
+ };
+
+    // Act
+ var response = await client.PostAsJsonAsync("/api/matches/decline", requestDto);
+
+        // Assert
+   response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task DeclineMatch_WithZeroTmdbId_Returns400()
+    {
+        // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+   var requestDto = new RequestMatchDto
+     {
+ TargetUserId = Guid.NewGuid().ToString(),
+       TmdbId = 0 // Invalid
+  };
+
+        // Act
+    var response = await client.PostAsJsonAsync("/api/matches/decline", requestDto);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+  [Fact]
+    public async Task DeclineMatch_NonExistentRequest_Returns204()
+    {
+        // Arrange - No match request exists
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+      var requestDto = new RequestMatchDto
+     {
+    TargetUserId = Guid.NewGuid().ToString(),
+      TmdbId = 27205
+        };
+
+        // Act - Decline non-existent request (should be idempotent)
+        var response = await client.PostAsJsonAsync("/api/matches/decline", requestDto);
+
+     // Assert - Should succeed (idempotent operation)
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    #endregion
+
+    #region GetMatchStatus Tests (NEW - Addresses CRAP Score 110)
+
+    [Fact]
+    public async Task GetMatchStatus_WithoutAuth_Returns401()
+    {
+  // Arrange
+    var client = _fixture.CreateClient();
+        var targetUserId = Guid.NewGuid().ToString();
+
+        // Act
+        var response = await client.GetAsync($"/api/matches/status/{targetUserId}");
+
+ // Assert
+      response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetMatchStatus_WithNoRequest_ReturnsNoneStatus()
+    {
+   // Arrange
+        var (client1, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+ var (_, userId2, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+     var response = await client1.GetAsync($"/api/matches/status/{userId2}");
+    var status = await response.Content.ReadFromJsonAsync<MatchStatusDto>();
+
+        // Assert
+      response.StatusCode.Should().Be(HttpStatusCode.OK);
+ status.Should().NotBeNull();
+      status!.Status.Should().Be("none");
+        status.CanMatch.Should().BeTrue();
+        status.CanDecline.Should().BeFalse();
+    }
+
+ [Fact]
+  public async Task GetMatchStatus_WithSentRequest_ReturnsPendingSentStatus()
+    {
+ // Arrange
+        var (client1, userId1, _) = await _fixture.CreateAuthenticatedClientAsync();
+        var (_, userId2, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // User1 sends request to User2
+        await client1.PostAsJsonAsync("/api/matches/request", new RequestMatchDto
+        {
+     TargetUserId = userId2,
+      TmdbId = 27205
+      });
+
+   // Act
+        var response = await client1.GetAsync($"/api/matches/status/{userId2}");
+   var status = await response.Content.ReadFromJsonAsync<MatchStatusDto>();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        status.Should().NotBeNull();
+   status!.Status.Should().Be("pending_sent");
+        status.CanMatch.Should().BeFalse();
+  status.CanDecline.Should().BeFalse();
+        status.RequestSentAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GetMatchStatus_WithReceivedRequest_ReturnsPendingReceivedStatus()
+    {
+        // Arrange
+        var (client1, userId1, _) = await _fixture.CreateAuthenticatedClientAsync();
+   var (client2, userId2, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // User2 sends request to User1
+        await client2.PostAsJsonAsync("/api/matches/request", new RequestMatchDto
+        {
+ TargetUserId = userId1,
+       TmdbId = 27205
+     });
+
+     // Act - User1 checks status with User2
+        var response = await client1.GetAsync($"/api/matches/status/{userId2}");
+        var status = await response.Content.ReadFromJsonAsync<MatchStatusDto>();
+
+   // Assert
+     response.StatusCode.Should().Be(HttpStatusCode.OK);
+        status.Should().NotBeNull();
+   status!.Status.Should().Be("pending_received");
+        status.CanMatch.Should().BeTrue(); // Can accept
+        status.CanDecline.Should().BeTrue(); // Can decline
+    }
+
+    [Fact]
+    public async Task GetMatchStatus_WithMutualMatch_ReturnsMatchedStatus()
+ {
+     // Arrange
+        var (client1, userId1, _) = await _fixture.CreateAuthenticatedClientAsync();
+        var (client2, userId2, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Both users send requests (creates mutual match)
+ await client1.PostAsJsonAsync("/api/matches/request", new RequestMatchDto
+        {
+   TargetUserId = userId2,
+     TmdbId = 27205
+        });
+
+        var matchResponse = await client2.PostAsJsonAsync("/api/matches/request", new RequestMatchDto
+        {
+ TargetUserId = userId1,
+       TmdbId = 27205
+      });
+        var matchResult = await matchResponse.Content.ReadFromJsonAsync<MatchResultDto>();
+
+        // Act
+        var response = await client1.GetAsync($"/api/matches/status/{userId2}");
+    var status = await response.Content.ReadFromJsonAsync<MatchStatusDto>();
+
+   // Assert
+    response.StatusCode.Should().Be(HttpStatusCode.OK);
+   status.Should().NotBeNull();
+        status!.Status.Should().Be("matched");
+     status.CanMatch.Should().BeFalse();
+  status.CanDecline.Should().BeFalse();
+ status.RoomId.Should().Be(matchResult!.RoomId);
+    }
+
+    [Fact]
+    public async Task GetMatchStatus_WithSelfUserId_Returns400()
+    {
+        // Arrange
+   var (client, userId, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act - Check status with self
+        var response = await client.GetAsync($"/api/matches/status/{userId}");
+
+   // Assert
+   response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+[Fact]
+ public async Task GetMatchStatus_WithInvalidGuid_Returns400()
+    {
+   // Arrange
+        var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+        var response = await client.GetAsync("/api/matches/status/not-a-guid");
+
+        // Assert
+   response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+ public async Task GetMatchStatus_WithEmptyGuid_Returns400()
+    {
+   // Arrange
+   var (client, _, _) = await _fixture.CreateAuthenticatedClientAsync();
+
+        // Act
+     var response = await client.GetAsync($"/api/matches/status/{Guid.Empty}");
+
+        // Assert
+     response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    #endregion
 }

@@ -1,0 +1,80 @@
+<Project>
+  <!-- ========================================
+       Coverlet Code Coverage Configuration
+       ========================================
+       This file is automatically imported by all projects in the solution.
+ It centralizes coverage settings to avoid duplication.
+       
+       Applies to: All test projects (*.Tests.csproj)
+   ======================================== -->
+
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    
+    <!-- Enable Coverage Collection -->
+    <CollectCoverage>true</CollectCoverage>
+    
+    <!-- Output Formats -->
+    <CoverletOutputFormat>cobertura,json</CoverletOutputFormat>
+    
+ <!-- Output Directory (relative to each test project) -->
+    <CoverletOutput>$(MSBuildProjectDirectory)/TestResults/coverage/</CoverletOutput>
+    
+    <!-- Coverage Thresholds -->
+    <!-- Current baseline: 31% - target 35% -->
+    <Threshold>0</Threshold>
+    <ThresholdType>line</ThresholdType>
+    <ThresholdStat>total</ThresholdStat>
+
+    <!-- Exclusions: What NOT to measure -->
+    <!-- Note: Coverlet uses assembly-qualified type names -->
+    <Exclude>
+      <!-- EF Core Migrations (generated code) - ALL variations -->
+      [Infrastructure]Infrastructure.Migrations*,
+  [Infrastructure]Infrastructure.Data.Migrations*,
+      <!-- DTOs (no business logic) -->
+      [Infrastructure]*Dto,
+      [Infrastructure]*Request,
+      [Infrastructure]*Response,
+      [Infrastructure]Infrastructure.Models*Dto,
+      [Infrastructure]Infrastructure.Likes*Dto,
+      <!-- Entities (POCOs) -->
+      [Infrastructure]Infrastructure.Data.Entities*,
+<!-- DbContext -->
+      [Infrastructure]Infrastructure.Data.Context*,
+      <!-- Program/Startup -->
+      [Presentation]Presentation.Program,
+      [Presentation]Program,
+      <!-- Test infrastructure -->
+      [xunit.*]*,
+      [FluentAssertions]*,
+      [Moq]*
+    </Exclude>
+    
+    <!-- Include Filters (explicitly include what we DO want) -->
+    <Include>
+ [Infrastructure]*,
+    [Presentation]*
+    </Include>
+    
+    <!-- Additional Settings -->
+    <ExcludeByAttribute>
+      Obsolete,
+      GeneratedCode,
+      CompilerGenerated,
+       ExcludeFromCodeCoverage
+    </ExcludeByAttribute>
+ 
+    <!-- Exclude files by path pattern (MOST RELIABLE for Migrations) -->
+    <ExcludeByFile>
+   **/Migrations/*.cs,
+      **/Migrations/**/*.cs,
+      **/obj/**,
+  **/bin/**,
+      **/*Designer.cs,
+**/*.g.cs,
+      **/*.g.i.cs
+    </ExcludeByFile>
+
+  </PropertyGroup>
+
+</Project>

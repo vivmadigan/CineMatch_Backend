@@ -1,0 +1,108 @@
+name: Test & Coverage
+
+# Trigger on pushes to main/develop and all PRs
+on:
+  push:
+ branches: [ main, develop, features/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-and-coverage:
+    name: Run Tests with Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. Checkout code
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      # 2. Setup .NET 9
+      - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+  with:
+          dotnet-version: '9.0.x'
+      
+      # 3. Restore dependencies
+      - name: Restore
+        run: dotnet restore
+      
+      # 4. Build (to catch compilation errors early)
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+      
+      # 5. Run tests with coverage (80% threshold)
+      - name: Run Tests with Coverage
+        run: |
+          dotnet test \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=cobertura \
+     /p:Threshold=80 \
+            /p:ThresholdType=line \
+         /p:ThresholdStat=total \
+ --no-build \
+    --configuration Release \
+   --verbosity minimal
+        continue-on-error: false  # Fail build if coverage < 80%
+      
+      # 6. Install ReportGenerator
+      - name: Install ReportGenerator
+        if: always()  # Run even if tests fail
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+      
+      # 7. Generate HTML Coverage Report
+    - name: Generate Coverage Report
+        if: always()
+        run: |
+   dotnet reportgenerator \
+         "-reports:**/coverage.cobertura.xml" \
+          "-targetdir:coverage-report" \
+     "-reporttypes:Html;TextSummary" \
+ "-title:CineMatch Code Coverage"
+      
+      # 8. Display Coverage Summary in Logs
+      - name: Display Coverage Summary
+        if: always()
+        run: |
+     echo "========================================="
+   echo " Coverage Summary"
+   echo "========================================="
+     cat coverage-report/Summary.txt || echo "Summary not found"
+    
+      # 9. Upload Coverage Report as Artifact
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+       path: coverage-report/
+          retention-days: 30
+      
+   # 10. Upload Cobertura XML (for third-party tools)
+      - name: Upload Cobertura XML
+        if: always()
+    uses: actions/upload-artifact@v4
+        with:
+      name: coverage-cobertura
+          path: '**/*coverage.cobertura.xml'
+    retention-days: 30
+      
+   # 11. Comment Coverage on PR (optional - requires additional setup)
+   # Uncomment and configure if you want PR comments
+   # - name: Code Coverage Report
+      #   if: github.event_name == 'pull_request'
+      #   uses: irongut/CodeCoverageSummary@v1.3.0
+    #   with:
+      #  filename: '**/coverage.cobertura.xml'
+      #     badge: true
+      #     format: markdown
+      #     output: both
+      
+      # 12. Fail job if coverage threshold not met
+      - name: Check Coverage Threshold
+        if: failure()
+        run: |
+          echo "? Coverage threshold not met!"
+          echo "Current coverage is below 80%"
+        echo "Please add more tests to increase coverage."
+exit 1
