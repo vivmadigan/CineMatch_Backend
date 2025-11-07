@@ -218,9 +218,9 @@ public void ValidateRequest_ValidMovieId_IsValid(int movieId)
         var target = "user2";
         var movie = 27205;
         var existingRequests = new List<(string requestor, string target, int movie)>
-{
+        {
             ("user2", "user1", 27205)  // Incoming request from target
-   };
+        };
 
         // Act
         var isMutualMatch = CheckForMutualMatch(requestor, target, movie, existingRequests);
@@ -256,7 +256,7 @@ var target = "user2";
     /// <summary>
     /// LOGIC TEST: Mutual match requires same movie.
     /// GOAL: Requests for different movies don't match.
- /// IMPORTANCE: Movie specificity matters.
+    /// IMPORTANCE: Movie specificity matters.
     /// </summary>
     [Fact]
     public void DetectMutualMatch_DifferentMovies_ReturnsFalse()
@@ -273,7 +273,7 @@ var target = "user2";
         // Act
         var isMutualMatch = CheckForMutualMatch(requestor, target, movie, existingRequests);
 
-    // Assert
+        // Assert
         isMutualMatch.Should().BeFalse("requests are for different movies");
     }
 
@@ -413,13 +413,13 @@ return true;
 
     private bool CheckForMutualMatch(string requestor, string target, int movie,
         List<(string requestor, string target, int movie)> existingRequests)
-    {
+        {
         // Check if target already sent request to requestor for same movie
         return existingRequests.Any(r =>
-       r.requestor == target &&
+            r.requestor == target &&
             r.target == requestor &&
- r.movie == movie);
-    }
+            r.movie == movie);
+        }
 
     private bool CheckCanDecline(string decliner, string requestor, int movie,
         List<(string requestor, string target, int movie)> existingRequests)
